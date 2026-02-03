@@ -1,0 +1,13 @@
+% minefol_base.in
+% Base axioms for MineFOL
+% Messages are written in first-order logic about mine(Cell).
+
+set(auto).
+
+formulas(usable).
+
+% No global axioms are strictly required;
+% inference is driven by messages and mine-count constraints.
+
+end_of_list.
+

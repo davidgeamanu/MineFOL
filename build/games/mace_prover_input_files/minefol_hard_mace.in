@@ -1,0 +1,98 @@
+% ============================================================
+%  HARD PUZZLE: 6x6 MineFOL Board Verification
+%
+%  This file models the specific 6x6 board you designed.
+%  It asserts the TRUE mine locations and ALL your messages.
+%
+%  If Mace4 finds a model, your board is VALID (Consistent).
+%  If Mace4 finds NO model, your messages contradict the mines.
+% ============================================================
+
+assign(domain_size, 6).
+
+% ------------------------------------------------------------
+% ASSUMPTIONS: World Rules + Your Data
+% ------------------------------------------------------------
+formulas(assumptions).
+
+  % --- 1. Define Grid Coordinates (r1..r6) ---
+  Row(r1). Row(r2). Row(r3). Row(r4). Row(r5). Row(r6).
+  Col(r1). Col(r2). Col(r3). Col(r4). Col(r5). Col(r6).
+
+  % distinctness
+  r1!=r2. r1!=r3. r1!=r4. r1!=r5. r1!=r6.
+  r2!=r3. r2!=r4. r2!=r5. r2!=r6.
+  r3!=r4. r3!=r5. r3!=r6.
+  r4!=r5. r4!=r6.
+  r5!=r6.
+
+  % Domain closure (all x is one of these rows)
+  all x (x=r1 | x=r2 | x=r3 | x=r4 | x=r5 | x=r6).
+
+  % --- 2. The Hidden Truth (Your Mine Locations) ---
+  % Mines at: (1,4), (2,6), (3,1), (3,4), (4,3), (6,5)
+  mine(r1,r4).
+  mine(r2,r6).
+  mine(r3,r1).
+  mine(r3,r4).
+  mine(r4,r3).
+  mine(r6,r5).
+
+  % For strict validation, we assert -mine for all others:
+  -mine(r1,r1). -mine(r1,r2). -mine(r1,r3). -mine(r1,r5). -mine(r1,r6).
+  -mine(r2,r1). -mine(r2,r2). -mine(r2,r3). -mine(r2,r4). -mine(r2,r5).
+  -mine(r3,r2). -mine(r3,r3). -mine(r3,r5). -mine(r3,r6).
+  -mine(r4,r1). -mine(r4,r2). -mine(r4,r4). -mine(r4,r5). -mine(r4,r6).
+  -mine(r5,r1). -mine(r5,r2). -mine(r5,r3). -mine(r5,r4). -mine(r5,r5). -mine(r5,r6).
+  -mine(r6,r1). -mine(r6,r2). -mine(r6,r3). -mine(r6,r4). -mine(r6,r6).
+
+  % --- 3. Your Manual Messages (Translated to Prover9) ---
+
+  % (1,1): (-mine(1,2) & -mine(2,1)) & row 5 safe
+  (-mine(r1,r2) & -mine(r2,r1)) & (all x -mine(r5,x)).
+
+  % (1,2): no mines on the diagonal (x,x)
+  all x -mine(x,x).
+
+  % (1,5): there is a mine on row 1 & -mine(6,4)
+  (exists x mine(r1,x)) & -mine(r6,r4).
+
+  % (1,6): mine(3,1)
+  mine(r3,r1).
+
+  % (2,2): there are no mines on column 2
+  all x -mine(x,r2).
+
+  % (2,3): ((no mine on col 6) | -mine(4,1)) & -mine(6,3)
+  % Note: Since there IS a mine on col 6 (at 2,6), the first part of OR is false,
+  % so -mine(4,1) MUST be true for this to be consistent.
+  (-(exists x mine(x,r6)) | -mine(r4,r1)) & -mine(r6,r3).
+
+  % (3,5): there exists x for which there is a mine on row 2
+  exists x mine(r2,x).
+
+  % (4,1): (-mine(1,4) | -mine(4,5)) & (-mine(6,1) -> -mine(1,5))
+  (-mine(r1,r4) | -mine(r4,r5)) & (-mine(r6,r1) -> -mine(r1,r5)).
+
+  % (4,4): mine(3,4) -> -mine(2,3)
+  mine(r3,r4) -> -mine(r2,r3).
+
+  % (4,5): -mine(3,6) & -mine(4,6)
+  -mine(r3,r6) & -mine(r4,r6).
+
+  % (5,2): for any x, if mine(4,x) -> mine(x,4)
+  all x (mine(r4,x) -> mine(x,r4)).
+
+  % (5,5): mine(4,3)
+  mine(r4,r3).
+
+  % (6,3): (-mine(6,1) & -mine(3,5)) & (-mine(6,6) -> -mine(5,6))
+  (-mine(r6,r1) & -mine(r3,r5)) & (-mine(r6,r6) -> -mine(r5,r6)).
+
+  % (6,4): -mine(1,3) & -mine(1,6)
+  -mine(r1,r3) & -mine(r1,r6).
+
+  % (6,6): -mine(2,4) & -mine(2,5)
+  -mine(r2,r4) & -mine(r2,r5).
+
+end_of_list.

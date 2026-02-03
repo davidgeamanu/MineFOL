@@ -1,0 +1,80 @@
+% ========================================================
+% PROOF: Can ALL mines be found from the clues?
+% ========================================================
+
+set(auto).
+
+formulas(assumptions).
+
+  % --- 1. Domain Definitions (6x6 Grid) ---
+  all x (x=r1 | x=r2 | x=r3 | x=r4 | x=r5 | x=r6).
+
+  % Distinctness
+  r1!=r2. r1!=r3. r1!=r4. r1!=r5. r1!=r6.
+  r2!=r3. r2!=r4. r2!=r5. r2!=r6.
+  r3!=r4. r3!=r5. r3!=r6.
+  r4!=r5. r4!=r6.
+  r5!=r6.
+
+  % --- 2. Known facts ---
+
+  % (1,1): (-mine(1,2) & -mine(2,1)) & row 5 safe
+  (-mine(r1,r2) & -mine(r2,r1)) & (all x -mine(r5,x)).
+
+  % (1,2): no mines on the diagonal (x,x)
+  all x -mine(x,x).
+
+  % (1,5): there is a mine on row 1 & -mine(6,4)
+  (exists x mine(r1,x)) & -mine(r6,r4).
+
+  % (1,6): mine(3,1)
+  mine(r3,r1).
+
+  % (2,2): there are no mines on column 2
+  all x -mine(x,r2).
+
+  % (2,3): ((no mine on col 6) | -mine(4,1)) & -mine(6,3)
+  (-(exists x mine(x,r6)) | -mine(r4,r1)) & -mine(r6,r3).
+
+  % (3,5): there exists x for which there is a mine on row 2
+  exists x mine(r2,x).
+
+  % (4,1): (-mine(1,4) | -mine(4,5)) & (-mine(6,1) -> -mine(1,5))
+  (-mine(r1,r4) | -mine(r4,r5)) & (-mine(r6,r1) -> -mine(r1,r5)).
+
+  % (4,4): mine(3,4) -> -mine(2,3)
+  mine(r3,r4) -> -mine(r2,r3).
+
+  % (4,5): -mine(3,6) & -mine(4,6)
+  -mine(r3,r6) & -mine(r4,r6).
+
+  % (5,2): for any x, if mine(4,x) -> mine(x,4)
+  all x (mine(r4,x) -> mine(x,r4)).
+
+  % (5,5): mine(4,3)
+  mine(r4,r3).
+
+  % (6,3): (-mine(6,1) & -mine(3,5)) & (-mine(6,6) -> -mine(5,6))
+  (-mine(r6,r1) & -mine(r3,r5)) & (-mine(r6,r6) -> -mine(r5,r6)).
+
+  % (6,4): -mine(1,3) & -mine(1,6)
+  -mine(r1,r3) & -mine(r1,r6).
+
+  % (6,6): -mine(2,4) & -mine(2,5)
+  -mine(r2,r4) & -mine(r2,r5).
+
+end_of_list.
+
+formulas(goals).
+
+  % --- 3. THE GRAND THEOREM ---
+  % Can we prove the exact location of ALL 6 mines?
+
+  mine(r1,r4) &
+  mine(r2,r6) &
+  mine(r3,r1) &
+  mine(r3,r4) &
+  mine(r4,r3) &
+  mine(r6,r5).
+
+end_of_list.

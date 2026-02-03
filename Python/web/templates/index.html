@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>MineFOL Web</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">MineFOL</div>
+    <div class="controls">
+      <select id="difficulty">
+        <option>Easy</option>
+        <option>Medium</option>
+        <option>Hard</option>
+      </select>
+      <button id="newGame">Restart</button>
+      <button id="loadCustom" style="background: rgba(100,100,255,0.2); border-color: rgba(100,100,255,0.4);">Load Custom</button>
+      <button id="showSolution" style="background: rgba(255,100,100,0.2); border-color: rgba(255,100,100,0.4);">Show Solution</button>
+      <button id="hintSafe">Hint: Safe moves</button>
+      <button id="hintForced">Hint: Forced mines</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="goal-box">
+        🎯 <strong>GOAL:</strong> Flag all the mines!
+      </div>
+
+      <div class="scrollable-content">
+        <h2>Status</h2>
+        <div id="status"></div>
+        <div id="info" class="info"></div>
+        <div id="error" class="error"></div>
+
+        <h2>Current cell message</h2>
+        <div id="currentMessage" class="currentMessage"></div>
+
+        <h2>Knowledge Base</h2>
+        <pre id="messages" class="messages"></pre>
+
+        <h2>Controls</h2>
+        <ul style="font-size: 14px; line-height: 1.6; padding-left: 20px; margin: 5px 0;">
+          <li><strong>Move:</strong> - Click an adjacent cell or use WASD/Arrow keys.</li>
+          <li><strong>Risky moves allowed:</strong> - step anywhere adjacent (may hit mine!).</li>
+          <li><strong>Hint: Safe moves</strong> - Uses Prover9 to show provably safe adjacent cells.</li>
+          <li><strong>Hint: Forced mines</strong> - Uses Mace4 to find forced mines (slow!).</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="boardWrap">
+      <div class="modeToggle">
+        <h3>Mode</h3>
+        <div id="cursorMode" class="modeBtn active" title="Cursor Mode (Move)">
+          <span>👆</span>
+        </div>
+        <div id="flagModeBtn" class="modeBtn" title="Flag Mode">
+          <span>🚩</span>
+        </div>
+      </div>
+
+      <div id="boardWrap">
+        <div id="boardGrid" class="boardGrid"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
