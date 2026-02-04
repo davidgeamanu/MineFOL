@@ -251,9 +251,9 @@ python console_play_generated.py
 ### Theorem Prover Integration
 
 ```
-Player discovers clue → Added to Knowledge Base →
+Player discovers clue → Added to Knowledge Base 
                               ↓
-Player requests hint → Prover9/Mace4 called →
+Player requests hint → Prover9/Mace4 called 
                               ↓
 Safe cells highlighted (green) / Forced mines highlighted (red)
 ```
