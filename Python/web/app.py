@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import json
 from pathlib import Path
@@ -12,10 +13,11 @@ PROJECT_ROOT = THIS_FILE.parents[2]
 SRC_DIR = PROJECT_ROOT / "Python" / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-from Python.src.grid import Grid
-from Python.src.game_state import GameState
-from Python.src.logic_engine import LogicEngine
-from Python.src.message_translate import parse_formula_for_display
+# Python/src is on sys.path (above), so these work from any working directory
+from grid import Grid
+from game_state import GameState
+from logic_engine import LogicEngine
+from message_translate import parse_formula_for_display
 
 Coord = Tuple[int, int]
 
@@ -106,6 +108,22 @@ def _state_to_payload(grid: Grid, state: GameState, highlight_safe: List[Coord] 
         "cells": cells,
         "flaggedCount": len(state.flagged),
     }
+
+
+def _describe_fact(fact: str, state: GameState, grid: Grid) -> str:
+
+    #Turn a knowledge-base entry into a sentence for the player.
+
+    for (r, c), msg in state.messages_by_cell.items():
+        if msg.strip() == fact:
+            return f"clue at ({r},{c}): {parse_formula_for_display(fact, grid)}"
+
+    m = re.fullmatch(r"(-?)mine\((\d+),(\d+)\)", fact)
+    if m and m.group(1):
+        return f"({m.group(2)},{m.group(3)}) is safe (you visited it)"
+    if m:
+        return f"({m.group(2)},{m.group(3)}) is a flagged mine"
+    return parse_formula_for_display(fact, grid)
 
 
 def _get_session_id() -> str:
@@ -302,7 +320,7 @@ def api_flag():
 @app.get("/api/hint_safe")
 def api_hint_safe():
 
-    #Compute and show provably safe moves using Prover9.
+    #Compute and show provably safe moves using Mace4 (Prover9 explains them on demand).
     sid = _get_session_id()
     if sid not in SESSIONS:
         return jsonify({"error": "No game"}), 400
@@ -316,13 +334,13 @@ def api_hint_safe():
             **_state_to_payload(grid, state)
         })
 
-    print(f"[HINT SAFE] Computing safe moves from ({state.pos[0]},{state.pos[1]}) using Prover9...")
+    print(f"[HINT SAFE] Computing safe moves from ({state.pos[0]},{state.pos[1]}) using Mace4...")
 
     kb = state.collected_messages.copy()
     for (fr, fc) in state.flagged:
         kb.append(f"mine({fr},{fc})")
 
-    # This calls Prover9 multiple times (once per neighbor)
+    # This calls Mace4 once per neighbor
     r, c = state.pos
     #safe_moves = ENGINE.legal_moves(grid, state.mines, state.collected_messages, r, c)
     all_safe_moves = ENGINE.legal_moves(grid, state.mines, kb, state.pos[0], state.pos[1])
@@ -335,6 +353,7 @@ def api_hint_safe():
     if safe_moves:
         moves_str = ", ".join([f"({rr},{cc})" for rr, cc in safe_moves])
         return jsonify({
+            "safeMoves": safe_moves,
             "info": f"✅ Provably safe moves: {moves_str}",
             **_state_to_payload(grid, state, highlight_safe=safe_moves)  # Highlight them!
         })
@@ -343,6 +362,47 @@ def api_hint_safe():
             "info": "⚠️ No provably safe moves from current position.",
             **_state_to_payload(grid, state)
         })
+
+
+@app.get("/api/explain_safe")
+def api_explain_safe():
+
+    #Explain why a cell is safe: Prover9 proves it and we list the facts the proof used.
+    sid = _get_session_id()
+    if sid not in SESSIONS:
+        return jsonify({"error": "No game"}), 400
+
+    rr = int(request.args["r"])
+    cc = int(request.args["c"])
+
+    grid = Grid(n=SESSIONS[sid]["grid_n"])
+    state: GameState = SESSIONS[sid]["state"]
+
+    kb = state.collected_messages.copy()
+    for (fr, fc) in state.flagged:
+        kb.append(f"mine({fr},{fc})")
+
+    # Only explain cells that really are safe (Mace4 decides, Prover9 explains)
+    if not ENGINE.is_provably_safe(state.n, state.mines, kb, rr, cc):
+        return jsonify({"explanation": f"({rr},{cc}) is not provably safe with what you know so far."})
+
+    print(f"[EXPLAIN] Asking Prover9 why ({rr},{cc}) is safe...")
+    result = ENGINE.explain_safe(state.n, state.mines, kb, rr, cc)
+
+    if result is None:
+        return jsonify({
+            "explanation": f"({rr},{cc}) is safe, but Prover9 found no short explanation "
+                           f"(usually this means it follows from counting the mines)."
+        })
+
+    used, used_mine_count = result
+    lines = [f"({rr},{cc}) is safe because:"]
+    for fact in used:
+        lines.append(f"• {_describe_fact(fact, state, grid)}")
+    if used_mine_count:
+        lines.append(f"• there are exactly {state.mines} mines")
+
+    return jsonify({"explanation": "\n".join(lines)})
 
 
 @app.get("/api/hint_forced")

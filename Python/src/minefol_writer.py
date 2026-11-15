@@ -82,6 +82,7 @@ def write_mace_instance(project_root: Path, params: GameParams, messages: List[s
 
     #Mace4 instance:
     #  domain_size = N  (rows/cols are elements r1..rN)
+    #  r1..rN pinned to Mace4's elements 0..N-1 (only fixes the labelling)
     #  closure axiom so quantifiers range over exactly those N elements
     #  exactly M mines via pair constants
     #  messages added verbatim
@@ -102,6 +103,14 @@ def write_mace_instance(project_root: Path, params: GameParams, messages: List[s
     for r in rows:
         lines.append(f"Row({r}).")
         lines.append(f"Col({r}).")
+    lines.append("")
+
+    # r1..rN are N distinct elements of an N-element domain, so in every model they
+    # are just a relabelling of 0..N-1. Pinning them loses no models, and Mace4 no
+    # longer searches over which element each ri is (seconds -> ms on 6x6).
+    lines.append("% --- Pin row/col constants to domain elements ---")
+    for i, r in enumerate(rows):
+        lines.append(f"{r} = {i}.")
     lines.append("")
     lines.extend(_distinct_constants_axioms(rows))
     lines.append("")
@@ -148,12 +157,16 @@ def write_prover_query(project_root: Path, params: GameParams, messages_so_far: 
     lines.append("")
     lines.append(_domain_closure_axiom(rows))
     lines.append("")
-    lines.extend(exactly_m_mines_axioms(params.n, params.mines))
+
+    # Labels show up in Prover9's proof, so we can tell which facts it used:
+    # kb<i> = messages_so_far[i], mine_count = the "exactly M mines" axioms
+    for ax in exactly_m_mines_axioms(params.n, params.mines):
+        lines.append(ax if ax.startswith("%") else ax.rstrip(".") + " # label(mine_count).")
     lines.append("")
     lines.append("% --- Messages collected so far ---")
-    for m in messages_so_far:
-        m2 = rewrite_mine_terms_to_rconsts(m.strip())
-        lines.append(m2 if m2.endswith(".") else (m2 + "."))
+    for i, m in enumerate(messages_so_far):
+        m2 = rewrite_mine_terms_to_rconsts(m.strip()).rstrip(".")
+        lines.append(f"{m2} # label(kb{i}).")
     lines.append("")
     lines.append("end_of_list.")
     lines.append("")

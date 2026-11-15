@@ -102,6 +102,8 @@ body{
 }
 
 .info{color:var(--warn); margin-top:8px; min-height:18px}
+.whyBtn{margin:4px 6px 0 0; font-size:13px; cursor:pointer}
+.explanation{margin-top:8px; font-size:14px; line-height:1.5; white-space:pre-line}
 .error{color:var(--bad); margin-top:6px; min-height:18px}
 
 .boardWrap{

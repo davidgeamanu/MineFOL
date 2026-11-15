@@ -5,6 +5,8 @@ function qs(id){ return document.getElementById(id); }
 
 function clearMsgs(){
   qs("info").textContent = "";
+  qs("whyButtons").textContent = "";
+  qs("explanation").textContent = "";
   qs("error").textContent = "";
 }
 
@@ -175,12 +177,32 @@ async function newGame(){
 
 async function hintSafe(){
   clearMsgs();
-  qs("info").textContent = "Computing safe moves with Prover9...";
+  qs("info").textContent = "Computing safe moves with Mace4...";
   const res = await api("/api/hint_safe");
   clearMsgs();
   if(res.info) qs("info").textContent = res.info;
   state = res;
   render();
+  showWhyButtons(res.safeMoves || []);
+}
+
+function showWhyButtons(moves){
+  // One "Why?" button per safe move; Prover9 explains it on demand
+  const box = qs("whyButtons");
+  box.textContent = "";
+  for (const [r, c] of moves) {
+    const btn = document.createElement("button");
+    btn.className = "whyBtn";
+    btn.textContent = `Why is (${r},${c}) safe?`;
+    btn.addEventListener("click", () => explainSafe(r, c));
+    box.appendChild(btn);
+  }
+}
+
+async function explainSafe(r, c){
+  qs("explanation").textContent = `Asking Prover9 why (${r},${c}) is safe...`;
+  const res = await api(`/api/explain_safe?r=${r}&c=${c}`);
+  qs("explanation").textContent = res.error || res.explanation;
 }
 
 async function hintForced(){

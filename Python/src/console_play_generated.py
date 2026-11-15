@@ -60,7 +60,7 @@ def main():
         if cmd == "q":
             break
 
-        # show provably safe moves from current position (Prover9 showcase)
+        # show provably safe moves from current position (Mace4)
         if cmd == "h":
             print("Provably safe moves from here:", legal)
             continue
@@ -126,7 +126,7 @@ def main():
             continue
 
         if (rr, cc) not in legal:
-            print("Move blocked: Prover9 cannot prove safeness.")
+            print("Move blocked: Mace4 cannot prove safeness.")
             continue
 
         state.step_into((rr, cc))

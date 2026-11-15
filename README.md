@@ -52,8 +52,8 @@
 <td width="50%">
 
 ### Automated Reasoning
-- **Prover9** for proving safe moves
-- **Mace4** for detecting forced mines
+- **Mace4** for finding safe moves and forced mines
+- **Prover9** for proofs explaining why a move is safe
 - Real-time theorem proving integration
 - Solvability validation on generation
 
@@ -149,8 +149,8 @@
 
 ### Logic Systems
 - **First-Order Logic (FOL)** - Formal language for clues
-- **Prover9** - Proves `-mine(r,c)` to find safe cells
-- **Mace4** - Checks model satisfiability to find forced mines
+- **Mace4** - Searches for boards that fit the clues: finds safe cells and forced mines, and validates generated puzzles
+- **Prover9** - Proves `-mine(r,c)` to explain why a cell is safe
 
 ---
 
@@ -359,7 +359,8 @@ Safe cells highlighted (green) / Forced mines highlighted (red)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/hint_safe` | Find provably safe moves (Prover9) |
+| `GET` | `/hint_safe` | Find provably safe moves (Mace4) |
+| `GET` | `/explain_safe?r=&c=` | Explain why a cell is safe (Prover9 proof) |
 | `GET` | `/hint_forced` | Find forced mines (Mace4) |
 
 <details>
@@ -368,11 +369,25 @@ Safe cells highlighted (green) / Forced mines highlighted (red)
 **Response:**
 ```json
 {
-  "safe_moves": [[1, 2], [2, 1]]
+  "safeMoves": [[1, 2], [2, 1]]
 }
 ```
 
-Cells are proven safe using Prover9 theorem proving.
+A neighbour is safe when Mace4 finds no board that fits your knowledge with a mine on it.
+
+</details>
+
+<details>
+<summary><b>GET</b> <code>/api/explain_safe?r=1&c=3</code> - Explain a safe cell</summary>
+
+**Response:**
+```json
+{
+  "explanation": "(1,3) is safe because:\n• clue at (1,1): ...\n• clue at (1,2): ..."
+}
+```
+
+Prover9 proves the cell is safe and lists the clues and facts the proof used. If it finds no proof within 1 s (typically for steps that need counting the mines), the response says so.
 
 </details>
 

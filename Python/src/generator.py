@@ -91,10 +91,11 @@ def validate_solvable_flag_all_mines(grid: Grid, engine: LogicEngine, mines: Set
 
         frontier_list = sorted(list(frontier))
 
-        # 1) Try PROVABLY SAFE (Prover9)
+        # 1) Try PROVABLY SAFE (Mace4: no model puts a mine there)
+        # Prover9 can't answer "not provable" before its timeout, so it was slow here
         found_safe = None
         for (r, c) in frontier_list:
-            if engine.can_prove_safe(n, total_mines, kb, r, c, timeout=0.3):
+            if engine.is_provably_safe(n, total_mines, kb, r, c):
                 found_safe = (r, c)
                 break
 
