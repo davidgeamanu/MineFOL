@@ -33,11 +33,34 @@ def _parse_cell_key(k: str) -> Coord:
     return int(r), int(c)
 
 
-def _load_game(diff: str) -> dict:
-    p = PROJECT_ROOT / "build" / "games" / f"game_{diff.lower()}.json"
+GAMES_DIR = PROJECT_ROOT / "build" / "games"
+
+
+def _load_puzzle(category: str, number: int) -> dict:
+    p = GAMES_DIR / category / f"{number:03d}.json"
     if not p.exists():
-        raise FileNotFoundError(f"Missing game file: {p}")
+        raise FileNotFoundError(f"Missing puzzle file: {p}")
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+def _list_puzzles() -> list[dict]:
+
+    #Every folder in build/games holding numbered puzzles (001.json, 002.json, ...) is a category,
+    #so adding a category means adding a folder. Categories are ordered by the board size and
+    #mine count of their first puzzle, which puts Easy < Medium < Hard.
+
+    categories = []
+    for folder in sorted(GAMES_DIR.iterdir()):
+        numbers = sorted(int(p.stem) for p in folder.glob("*.json") if p.stem.isdigit()) if folder.is_dir() else []
+        if not numbers:
+            continue
+        first = _load_puzzle(folder.name, numbers[0])
+        categories.append(((first["n"], first["mines"]), {
+            "name": folder.name,
+            "label": folder.name.capitalize(),
+            "numbers": numbers,
+        }))
+    return [cat for _, cat in sorted(categories, key=lambda item: item[0])]
 
 
 def _new_state_from_game(game: dict) -> tuple[Grid, GameState]:
@@ -89,13 +112,10 @@ def _state_to_payload(grid: Grid, state: GameState, highlight_safe: List[Coord] 
 
     success = (len(state.flagged) == state.mines and state.flagged == state.mine_cells)
 
-    current_msg_display = ""
-    if state.last_cell_message:
-        current_msg_display = parse_formula_for_display(state.last_cell_message, grid)
-
-    display_messages = []
-    for msg in state.player_messages[-10:]:
-        display_messages.append(parse_formula_for_display(msg, grid))
+    # Knowledge base: every clue found so far, in the order found, with the cell it came from
+    cell_of = {msg.strip(): cell for cell, msg in state.messages_by_cell.items() if cell in state.visited}
+    clues = [{"cell": list(cell_of[msg]), "text": parse_formula_for_display(msg, grid)}
+             for msg in state.player_messages if msg in cell_of]
 
     return {
         "n": grid.n,
@@ -103,27 +123,25 @@ def _state_to_payload(grid: Grid, state: GameState, highlight_safe: List[Coord] 
         "pos": list(state.pos),
         "dead": state.dead,
         "success": success,
-        "currentMessage": current_msg_display,
-        "messages": display_messages,
+        "clues": clues,
         "cells": cells,
         "flaggedCount": len(state.flagged),
     }
 
 
-def _describe_fact(fact: str, state: GameState, grid: Grid) -> str:
+def _fact_for_player(fact: str, state: GameState, grid: Grid) -> dict:
 
-    #Turn a knowledge-base entry into a sentence for the player.
+    #Describe a knowledge-base entry used in a proof: a clue (with the cell it came from),
+    #a visited cell ("-mine(r,c)"), or a flagged mine ("mine(r,c)").
 
     for (r, c), msg in state.messages_by_cell.items():
-        if msg.strip() == fact:
-            return f"clue at ({r},{c}): {parse_formula_for_display(fact, grid)}"
+        if msg.strip() == fact and (r, c) in state.visited:
+            return {"kind": "clue", "cell": [r, c], "text": parse_formula_for_display(fact, grid)}
 
     m = re.fullmatch(r"(-?)mine\((\d+),(\d+)\)", fact)
-    if m and m.group(1):
-        return f"({m.group(2)},{m.group(3)}) is safe (you visited it)"
     if m:
-        return f"({m.group(2)},{m.group(3)}) is a flagged mine"
-    return parse_formula_for_display(fact, grid)
+        return {"kind": "visited" if m.group(1) else "flag", "cell": [int(m.group(2)), int(m.group(3))]}
+    return {"kind": "other", "text": parse_formula_for_display(fact, grid)}
 
 
 def _get_session_id() -> str:
@@ -135,42 +153,36 @@ def index():
     return render_template("index.html")
 
 
+@app.get("/api/puzzles")
+def api_puzzles():
+    #Categories and puzzle numbers, for the puzzle picker.
+    return jsonify({"categories": _list_puzzles()})
+
+
+def _start_puzzle(category: str, number: int) -> dict:
+
+    #Start a puzzle for this session and return its payload.
+
+    grid, state = _new_state_from_game(_load_puzzle(category, number))
+    sid = _get_session_id()
+    SESSIONS[sid] = {"category": category, "number": number, "grid_n": grid.n, "state": state}
+    return {"category": category, "number": number, **_state_to_payload(grid, state)}
+
+
 @app.post("/api/new_game")
 def api_new_game():
-    """Generate new game - NO Prover9 calls."""
+    """Start puzzle <number> of <category> - NO Prover9 calls."""
     data = request.get_json(force=True)
-    diff = data.get("difficulty", "Easy")
+    category = str(data.get("category", ""))
+    number = int(data.get("number", 1))
 
-    game = _load_game(diff)
-    grid, state = _new_state_from_game(game)
-
-    sid = _get_session_id()
-    SESSIONS[sid] = {"diff": diff, "grid_n": grid.n, "state": state}
+    # Only names and numbers we listed ourselves (they become a file path)
+    listed = {cat["name"]: cat["numbers"] for cat in _list_puzzles()}
+    if number not in listed.get(category, []):
+        return jsonify({"error": f"No puzzle {category} #{number}."}), 404
 
     # Return state with NO safe move hints
-    return jsonify(_state_to_payload(grid, state))
-
-
-@app.post("/api/load_custom")
-def api_load_custom():
-    custom_path = PROJECT_ROOT / "build" / "games" / "hard_6x6_example_handmade.json"
-
-    if not custom_path.exists():
-        return jsonify({"error": f"Custom file not found at: {custom_path}"}), 404
-
-    try:
-        game = json.loads(custom_path.read_text(encoding="utf-8"))
-        grid, state = _new_state_from_game(game)
-
-        sid = _get_session_id()
-        SESSIONS[sid] = {"diff": "Custom", "grid_n": grid.n, "state": state}
-
-        return jsonify({
-            "info": "Loaded custom 6x6 handmade puzzle.",
-            **_state_to_payload(grid, state)
-        })
-    except Exception as e:
-        return jsonify({"error": f"Failed to load custom game: {e}"}), 500
+    return jsonify(_start_puzzle(category, number))
 
 
 @app.get("/api/show_solution")
@@ -193,7 +205,7 @@ def api_show_solution():
                 all_safe.append((r, c))
 
     return jsonify({
-        "info": "👀 Solution revealed!",
+        "info": "Solution revealed: red cells are mines, green cells are safe.",
         **_state_to_payload(grid, state, highlight_safe=all_safe, highlight_forced=all_mines)
     })
 
@@ -202,15 +214,15 @@ def api_state():
 
     sid = _get_session_id()
     if sid not in SESSIONS:
-        game = _load_game("Easy")
-        grid, state = _new_state_from_game(game)
-        SESSIONS[sid] = {"diff": "Easy", "grid_n": grid.n, "state": state}
+        first = _list_puzzles()[0]
+        return jsonify(_start_puzzle(first["name"], first["numbers"][0]))
 
     grid = Grid(n=SESSIONS[sid]["grid_n"])
     state: GameState = SESSIONS[sid]["state"]
+    session = SESSIONS[sid]
 
     # Return state with NO safe move hints
-    return jsonify(_state_to_payload(grid, state))
+    return jsonify({"category": session["category"], "number": session["number"], **_state_to_payload(grid, state)})
 
 
 @app.post("/api/move")
@@ -250,7 +262,7 @@ def api_move():
         state.pos = (rr, cc)
         state.visited.add((rr, cc))
         return jsonify({
-            "error": "💥 Stepped on a mine. GAME OVER!",
+            "error": f"You stepped on a mine at ({rr},{cc}). Game over.",
             **_state_to_payload(grid, state)
         }), 200
 
@@ -298,7 +310,7 @@ def api_flag():
     if forced:
         state.flagged.add((rr, cc))
         return jsonify({
-            "info": f"🚩 Flagged mine at ({rr},{cc}) [forced by logic].",
+            "info": f"Flagged ({rr},{cc}): forced by logic.",
             **_state_to_payload(grid, state)
         }), 200
 
@@ -306,13 +318,13 @@ def api_flag():
     if (rr, cc) in state.mine_cells:
         state.flagged.add((rr, cc))
         return jsonify({
-            "info": f"🚩 Flagged mine at ({rr},{cc}) [correct guess].",
+            "info": f"Flagged ({rr},{cc}): it is a mine, but that was a guess.",
             **_state_to_payload(grid, state)
         }), 200
     else:
         state.dead = True
         return jsonify({
-            "error": "❌ Wrong flag. GAME OVER.",
+            "error": f"({rr},{cc}) is not a mine. Game over.",
             **_state_to_payload(grid, state)
         }), 200
 
@@ -354,12 +366,13 @@ def api_hint_safe():
         moves_str = ", ".join([f"({rr},{cc})" for rr, cc in safe_moves])
         return jsonify({
             "safeMoves": safe_moves,
-            "info": f"✅ Provably safe moves: {moves_str}",
+            "info": f"Provably safe moves: {moves_str}",
             **_state_to_payload(grid, state, highlight_safe=safe_moves)  # Highlight them!
         })
     else:
         return jsonify({
-            "info": "⚠️ No provably safe moves from current position.",
+            "safeMoves": [],
+            "info": "No provably safe moves from your position.",
             **_state_to_payload(grid, state)
         })
 
@@ -384,25 +397,23 @@ def api_explain_safe():
 
     # Only explain cells that really are safe (Mace4 decides, Prover9 explains)
     if not ENGINE.is_provably_safe(state.n, state.mines, kb, rr, cc):
-        return jsonify({"explanation": f"({rr},{cc}) is not provably safe with what you know so far."})
+        return jsonify({"cell": [rr, cc], "status": "not_safe"})
 
     print(f"[EXPLAIN] Asking Prover9 why ({rr},{cc}) is safe...")
     result = ENGINE.explain_safe(state.n, state.mines, kb, rr, cc)
 
+    # No proof within the time limit: usually the cell is safe by counting the mines
     if result is None:
-        return jsonify({
-            "explanation": f"({rr},{cc}) is safe, but Prover9 found no short explanation "
-                           f"(usually this means it follows from counting the mines)."
-        })
+        return jsonify({"cell": [rr, cc], "status": "no_short_proof"})
 
     used, used_mine_count = result
-    lines = [f"({rr},{cc}) is safe because:"]
-    for fact in used:
-        lines.append(f"• {_describe_fact(fact, state, grid)}")
-    if used_mine_count:
-        lines.append(f"• there are exactly {state.mines} mines")
-
-    return jsonify({"explanation": "\n".join(lines)})
+    return jsonify({
+        "cell": [rr, cc],
+        "status": "proved",
+        "facts": [_fact_for_player(fact, state, grid) for fact in used],
+        "usesMineCount": used_mine_count,
+        "mines": state.mines,
+    })
 
 
 @app.get("/api/hint_forced")
@@ -437,11 +448,12 @@ def api_hint_forced():
         forced_str = ", ".join([f"({r},{c})" for r, c in forced])
         return jsonify({
             "forcedMines": forced,
-            "info": f"🚩 Forced mines: {forced_str}",
+            "info": f"Forced mines: {forced_str}",
             **_state_to_payload(grid, state, highlight_forced=forced)
         })
     else:
         return jsonify({
+            "forcedMines": [],
             "info": "No forced mines detected with current knowledge.",
             **_state_to_payload(grid, state)
         })

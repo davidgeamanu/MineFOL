@@ -3,71 +3,125 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>MineFOL Web</title>
+  <title>MineFOL</title>
+  <script>
+    // Pick the theme before the page is drawn: the saved choice, else the system setting
+    (() => {
+      let saved = null;
+      try { saved = localStorage.getItem("minefolTheme"); } catch (e) {}
+      const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.dataset.theme = saved || (systemDark ? "dark" : "light");
+    })();
+  </script>
   <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
   <header class="topbar">
     <div class="title">MineFOL</div>
     <div class="controls">
-      <select id="difficulty">
-        <option>Easy</option>
-        <option>Medium</option>
-        <option>Hard</option>
-      </select>
-      <button id="newGame">Restart</button>
-      <button id="loadCustom" style="background: rgba(100,100,255,0.2); border-color: rgba(100,100,255,0.4);">Load Custom</button>
-      <button id="showSolution" style="background: rgba(255,100,100,0.2); border-color: rgba(255,100,100,0.4);">Show Solution</button>
-      <button id="hintSafe">Hint: Safe moves</button>
-      <button id="hintForced">Hint: Forced mines</button>
+      <button id="themeToggle" class="iconBtn"></button>
     </div>
   </header>
 
+  <!-- Wide screens: knowledge base | board | status and hints.
+       Narrower screens rearrange these three blocks (see the media queries in style.css). -->
   <main class="layout">
-    <section class="panel">
-      <div class="goal-box">
-        🎯 <strong>GOAL:</strong> Flag all the mines!
+    <!-- Left: what you know -->
+    <section class="card kbCard">
+      <div class="cardHeader">
+        <h2>Knowledge base</h2>
+        <button id="kbReset" class="linkBtn" hidden>Reset order</button>
+        <span id="kbCount" class="muted"></span>
       </div>
-
-      <div class="scrollable-content">
-        <h2>Status</h2>
-        <div id="status"></div>
-        <div id="info" class="info"></div>
-        <div id="whyButtons"></div>
-        <div id="explanation" class="explanation"></div>
-        <div id="error" class="error"></div>
-
-        <h2>Current cell message</h2>
-        <div id="currentMessage" class="currentMessage"></div>
-
-        <h2>Knowledge Base</h2>
-        <pre id="messages" class="messages"></pre>
-
-        <h2>Controls</h2>
-        <ul style="font-size: 14px; line-height: 1.6; padding-left: 20px; margin: 5px 0;">
-          <li><strong>Move:</strong> - Click an adjacent cell or use WASD/Arrow keys.</li>
-          <li><strong>Risky moves allowed:</strong> - step anywhere adjacent (may hit mine!).</li>
-          <li><strong>Hint: Safe moves</strong> - Uses Mace4 to show provably safe adjacent cells. Click "Why?" to get a Prover9 proof.</li>
-          <li><strong>Hint: Forced mines</strong> - Uses Mace4 to find forced mines (slow!).</li>
-        </ul>
-      </div>
+      <ol id="kb" class="kb"></ol>
     </section>
 
-    <section class="boardWrap">
-      <div class="modeToggle">
-        <h3>Mode</h3>
-        <div id="cursorMode" class="modeBtn active" title="Cursor Mode (Move)">
-          <span>👆</span>
-        </div>
-        <div id="flagModeBtn" class="modeBtn" title="Flag Mode">
-          <span>🚩</span>
+    <!-- Middle: the board -->
+    <section class="boardArea">
+      <!-- Puzzle picker: category, then "‹ Hard #2 of 4 ›" -->
+      <div class="picker">
+        <div id="categories" class="segmented"></div>
+        <div class="puzzleNav">
+          <button id="prevPuzzle" class="iconBtn" aria-label="Previous puzzle" title="Previous puzzle">
+            <svg class="uiIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+          <span id="puzzleLabel"></span>
+          <button id="nextPuzzle" class="iconBtn" aria-label="Next puzzle" title="Next puzzle">
+            <svg class="uiIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
         </div>
       </div>
-
-      <div id="boardWrap">
+      <div id="statusLine" class="statusLine" role="status"></div>
+      <!-- The board, with its controls in a row as wide as the board -->
+      <div class="boardBlock">
         <div id="boardGrid" class="boardGrid"></div>
+        <div class="boardToolbar">
+          <div class="segmented modeToggle" role="group" aria-label="Click mode">
+            <button id="cursorMode" class="active">
+              <svg class="uiIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>
+              Move
+            </button>
+            <button id="flagModeBtn" class="flagBtn">
+              <svg class="uiIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V4"/><path d="M7 4.5h10l-2.5 4 2.5 4H7"/></svg>
+              Flag
+            </button>
+          </div>
+          <button id="newGame" class="iconTextBtn" title="Start this puzzle again">
+            <svg class="uiIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4.5V9H8"/></svg>
+            Restart
+          </button>
+        </div>
       </div>
     </section>
+
+    <!-- Right: status and hints -->
+    <aside class="sidePanel">
+      <section class="stats">
+        <div class="stat">
+          <div class="statLabel">Mines flagged</div>
+          <div id="minesFlagged" class="statValue"></div>
+        </div>
+        <div class="stat">
+          <div class="statLabel">Position</div>
+          <div id="position" class="statValue"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardHeader">
+          <h2>Hints</h2>
+        </div>
+        <p class="cardIntro">See what your clues already prove about the board.</p>
+        <div class="hintButtons">
+          <button id="hintSafe">Show safe moves</button>
+          <button id="hintForced">Show forced mines</button>
+        </div>
+        <div id="hintList" class="hintList"></div>
+        <!-- Last-resort hint; asks for a second click before revealing (see app.js) -->
+        <div class="revealRow">
+          <button id="showSolution" class="linkBtn dangerLink">Reveal solution</button>
+        </div>
+      </section>
+
+      <!-- Pinned to the bottom of this column; the card opens upward (closing: see app.js) -->
+      <details id="help" class="help">
+        <summary>
+          <svg class="uiIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8v.01"/></svg>
+          How to play
+          <svg class="uiIcon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+        </summary>
+        <div class="helpCard">
+        <ul>
+          <li>Flag every mine. Each clue is a true statement about the board; a page icon marks the cells whose clue you have read.</li>
+          <li>Move with WASD / arrow keys, or click a cell next to you. Risky moves are allowed.</li>
+          <li>Switch to Flag to mark a mine; a wrong flag ends the game.</li>
+          <li>Drag clues in the knowledge base by their handle to keep the useful ones together. Reset order puts them back.</li>
+          <li>Show safe moves: Mace4 finds the neighbours that are provably safe. Show proof asks Prover9 which clues prove it.</li>
+          <li>Show forced mines: Mace4 finds the cells that must be mines.</li>
+        </ul>
+        </div>
+      </details>
+    </aside>
   </main>
 
   <script src="/static/app.js"></script>

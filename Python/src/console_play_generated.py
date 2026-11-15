@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import sys
 
 from grid import Grid
 from game_state import GameState
@@ -13,8 +14,10 @@ def parse_cell_key(k: str):
 
 
 def main():
-    # Change difficulty file here:
-    game_path = PROJECT_ROOT / "build/games/game_easy.json"
+    # Usage: python console_play_generated.py [category] [number]   (default: easy 1)
+    category = sys.argv[1].lower() if len(sys.argv) > 1 else "easy"
+    number = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    game_path = PROJECT_ROOT / "build" / "games" / category / f"{number:03d}.json"
     game = json.loads(game_path.read_text(encoding="utf-8"))
 
     n = game["n"]

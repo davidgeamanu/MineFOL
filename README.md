@@ -4,7 +4,7 @@
 
 ### A logic-based Minesweeper game powered by **First-Order Logic** and **Automated Theorem Proving**.
 
-[![Python](https://img.shields.io/badge/Python-3.x-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.x-black?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Prover9](https://img.shields.io/badge/Prover9-Theorem%20Prover-orange?style=for-the-badge)](https://www.cs.unm.edu/~mccune/prover9/)
 [![Mace4](https://img.shields.io/badge/Mace4-Model%20Finder-green?style=for-the-badge)](https://www.cs.unm.edu/~mccune/mace4/)
@@ -30,7 +30,7 @@
 - [How It Works](#how-it-works)
 - [API Documentation](#api-documentation)
 - [Project Structure](#project-structure)
-- [License](#license)
+- [Author](#author)
 - [Acknowledgments](#acknowledgments)
 
 ---
@@ -65,16 +65,17 @@
 ### Difficulty Levels
 - **Easy** - 4×4 grid with 3 mines
 - **Medium** - 5×5 grid with 4 mines
-- **Hard** - 6×6 grid with 5-6 mines
-- Procedurally generated puzzles
+- **Hard** - 6×6 grid with 5 mines
+- Procedurally generated, numbered puzzles (Hard #1, #2, ...)
+- Every puzzle is checked to be solvable without guessing
 
 </td>
 <td width="50%">
 
 ### Smart Hint System
-- **Safe Move Hints** - Highlights provably safe cells (green)
-- **Forced Mine Hints** - Identifies cells that must be mines (red)
-- AI-powered using formal verification
+- **Show safe moves** - neighbours that are provably safe (green)
+- **Show forced mines** - cells that must be mines (red)
+- **Show proof** - the Prover9 proof behind a safe move, with the clues it used highlighted
 
 </td>
 </tr>
@@ -82,18 +83,18 @@
 <td width="50%">
 
 ### Web Interface
-- Interactive Flask-based game UI
-- Click to move, right-click to flag
-- Real-time knowledge base display
-- Visual feedback for all actions
+- Flask web app with a puzzle picker (category + ‹ #N of M ›)
+- Move with clicks or WASD / arrow keys; Move/Flag toggle
+- Scrollable knowledge base listing every clue found
+- Light and dark themes
 
 </td>
 <td width="50%">
 
 ### Custom Puzzles
-- Load handmade puzzle boards
-- Board validation tool
-- JSON-based game state format
+- Hand-made boards in the `custom` category
+- Board validation tool (`verify_manual_board.py`)
+- JSON puzzle format
 - Console play mode available
 
 </td>
@@ -160,12 +161,13 @@
 
 Before you begin, ensure you have the following installed:
 
-| Tool | Version | Download |
-|------|---------|----------|
-| **Python** | 3.8+ | [Download](https://www.python.org/downloads/) |
-| **pip** | Latest | Included with Python |
+| Tool | Version | Notes |
+|------|---------|-------|
+| **Linux x86-64** | glibc 2.34+ | e.g. Ubuntu 22.04 / 24.04. On Windows use [WSL](https://learn.microsoft.com/windows/wsl/install) |
+| **Python** | 3.9+ | Tested with 3.12 |
+| **venv** | - | On Ubuntu/Debian: `sudo apt install python3-venv` |
 
-> **Note:** Prover9 and Mace4 binaries are included in the `bin/` directory.
+> **Note:** Prover9 and Mace4 are included as Linux x86-64 binaries in `bin/`. They do not run on macOS; there you would need to build [LADR](https://www.cs.unm.edu/~mccune/prover9/) (Prover9/Mace4) from source and replace the files in `bin/`.
 
 ---
 
@@ -174,45 +176,35 @@ Before you begin, ensure you have the following installed:
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/MineFOL_Project.git
-cd MineFOL_Project
+git clone https://github.com/davidgeamanu/MineFOL.git
+cd MineFOL
 ```
 
 #### 2. Install Python Dependencies
 
-```bash
-pip install flask
-```
-
-#### 3. Ensure Prover Binaries are Executable
-
-<details>
-<summary><b>Linux/Mac</b></summary>
+Use a virtual environment. On Ubuntu 23.04+ a plain `pip install` outside one is refused ("externally-managed-environment").
 
 ```bash
-chmod +x bin/prover9
-chmod +x bin/mace4
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-</details>
+#### 3. Make the Prover Binaries Executable
 
-<details>
-<summary><b>Windows</b></summary>
-
-You may need to compile Prover9/Mace4 from source or use WSL.
-
-</details>
+```bash
+chmod +x bin/prover9 bin/mace4
+```
 
 ---
 
 #### 4. Run the Web Application
 
 ```bash
-cd Python/web
-python app.py
+python Python/web/app.py
 ```
 
-Application starts on **`http://localhost:5000`**
+The app starts on **`http://localhost:5000`** (it works from any folder). Next time, only `source .venv/bin/activate` and this command are needed.
 
 ---
 
@@ -220,8 +212,23 @@ Application starts on **`http://localhost:5000`**
 
 ```bash
 cd Python/src
-python console_play_generated.py
+python console_play_generated.py            # Easy #1
+python console_play_generated.py hard 2     # any category and number
 ```
+
+Commands: `w`/`a`/`s`/`d` to move, `h` for safe moves, `m` for forced mines, `f <row> <col>` to flag, `q` to quit.
+
+---
+
+#### 6. Generating Puzzles
+
+```bash
+cd Python/src
+python save_game.py hard 3    # adds 3 new Hard puzzles under the next free numbers
+python save_game.py           # one new puzzle per difficulty
+```
+
+New puzzles are validated (solvable without guessing), never overwrite existing ones, and appear in the web app after a page refresh. Hard puzzles can take several minutes each. Don't run the generator while the web app is being played: both use the same temporary prover files in `Prover/`.
 
 ---
 
@@ -229,11 +236,11 @@ python console_play_generated.py
 
 ### Game Mechanics
 
-1. **Board Setup**: An N×N grid with randomly placed mines
-2. **Movement**: Navigate using clicks or arrow keys/WASD
-3. **Clue Discovery**: Each cell contains a FOL formula about mine locations
-4. **Flagging**: Right-click to flag suspected mines
-5. **Win Condition**: Flag all mines correctly without stepping on one
+1. **Board Setup**: An N×N grid with hidden mines; you start on (1,1), which is always safe
+2. **Movement**: Step to an adjacent cell by clicking it or with arrow keys/WASD
+3. **Clue Discovery**: Some safe cells hold a clue, a true FOL formula about the mines; stepping on the cell adds it to your knowledge base
+4. **Flagging**: Switch to Flag mode and click a cell. A wrong flag ends the game
+5. **Win Condition**: Flag every mine without stepping on one. Every puzzle can be solved by logic alone, without guessing
 
 ### FOL Message Types
 
@@ -251,11 +258,14 @@ python console_play_generated.py
 ### Theorem Prover Integration
 
 ```
-Player discovers clue → Added to Knowledge Base 
+Player discovers clue → added to the knowledge base
                               ↓
-Player requests hint → Prover9/Mace4 called 
+Player requests a hint → Mace4 checks each cell: is there any board that fits
+                         the knowledge base with a mine there (or without one)?
                               ↓
-Safe cells highlighted (green) / Forced mines highlighted (red)
+Safe cells highlighted (green) / forced mines highlighted (red)
+                              ↓
+"Show proof" on a safe cell → Prover9 proves it and lists the clues it used
 ```
 
 ---
@@ -270,37 +280,45 @@ Safe cells highlighted (green) / Forced mines highlighted (red)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/new_game` | Start a new game |
-| `POST` | `/load_custom` | Load a custom 6×6 puzzle |
+| `GET` | `/puzzles` | List puzzle categories and their numbers |
+| `POST` | `/new_game` | Start puzzle #N of a category |
 | `GET` | `/state` | Get current game state |
 | `GET` | `/show_solution` | Reveal all mine locations |
 
 <details>
-<summary><b>POST</b> <code>/api/new_game</code> - Start new game</summary>
+<summary><b>POST</b> <code>/api/new_game</code> - Start a puzzle</summary>
 
 **Request:**
 ```json
 {
-  "difficulty": "Medium"
+  "category": "medium",
+  "number": 2
 }
 ```
 
-**Difficulty Options:** `Easy`, `Medium`, `Hard`
+**Categories:** every folder in `build/games/` that holds numbered puzzles (`easy`, `medium`, `hard`, `custom`). `GET /api/puzzles` lists them with their numbers.
 
-**Response:**
+**Response** (the game state; every endpoint below returns it too):
 ```json
 {
+  "category": "medium",
+  "number": 2,
   "n": 5,
-  "position": [1, 1],
-  "visited": [[1, 1]],
-  "discovered_messages": {
-    "1,1": "((-mine(1,2) & -mine(2,1)) & (all x (-mine(5,x))))"
-  },
-  "flags": [],
-  "game_over": false,
-  "won": false
+  "mines": 4,
+  "pos": [1, 1],
+  "dead": false,
+  "success": false,
+  "flaggedCount": 0,
+  "clues": [
+    {"cell": [1, 1], "text": "((¬mine(2,1) ∧ ¬mine(1,2)) ∧ (∀x.(¬mine(3,x))))"}
+  ],
+  "cells": [[{"r": 1, "c": 1, "isCurrent": true, "visited": true, "flagged": false,
+              "provablySafe": false, "forcedHint": false, "hasMessage": true,
+              "showMessageIcon": true, "message": "((¬mine(2,1) ∧ ...)"}, "..."]]
 }
 ```
+
+`clues` is the knowledge base: every clue found so far, in order, with the cell it came from. `cells` is the board, row by row. `category` and `number` are only included by `/new_game` and `/state`.
 
 </details>
 
@@ -311,7 +329,7 @@ Safe cells highlighted (green) / Forced mines highlighted (red)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/move` | Move to an adjacent cell |
-| `POST` | `/flag` | Flag/unflag a cell |
+| `POST` | `/flag` | Flag a cell as a mine |
 
 <details>
 <summary><b>POST</b> <code>/api/move</code> - Move player</summary>
@@ -319,12 +337,12 @@ Safe cells highlighted (green) / Forced mines highlighted (red)
 **Request:**
 ```json
 {
-  "row": 1,
-  "col": 2
+  "r": 1,
+  "c": 2
 }
 ```
 
-**Response:** Updated game state (see `/new_game` response format)
+**Response:** the updated game state (see `/new_game`), plus an `error` message for an invalid move (`"Invalid move (must move to an adjacent cell)."`) or a mine (`"You stepped on a mine at (1,4). Game over."`).
 
 </details>
 
@@ -334,22 +352,14 @@ Safe cells highlighted (green) / Forced mines highlighted (red)
 **Request:**
 ```json
 {
-  "row": 3,
-  "col": 4
+  "r": 4,
+  "c": 3
 }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "is_mine": true,
-  "game_over": false,
-  "won": false
-}
-```
+**Response:** the updated game state, plus either an `info` message (`"Flagged (4,3): forced by logic."`, or `"... it is a mine, but that was a guess."`) or an `error` for a wrong flag, which ends the game (`"(5,5) is not a mine. Game over."`).
 
-> **Note:** Uses Mace4 to verify if the flagged cell is a forced mine.
+> **Note:** Mace4 checks whether the cell is a forced mine; if not, the flag is checked against the real board.
 
 </details>
 
@@ -366,14 +376,15 @@ Safe cells highlighted (green) / Forced mines highlighted (red)
 <details>
 <summary><b>GET</b> <code>/api/hint_safe</code> - Get safe move hints</summary>
 
-**Response:**
+**Response:** the game state (with the safe cells marked `provablySafe`), plus:
 ```json
 {
-  "safeMoves": [[1, 2], [2, 1]]
+  "safeMoves": [[1, 2], [2, 1]],
+  "info": "Provably safe moves: (1,2), (2,1)"
 }
 ```
 
-A neighbour is safe when Mace4 finds no board that fits your knowledge with a mine on it.
+Only the neighbours of your current cell are checked. A neighbour is safe when Mace4 finds no board that fits your knowledge with a mine on it.
 
 </details>
 
@@ -383,25 +394,33 @@ A neighbour is safe when Mace4 finds no board that fits your knowledge with a mi
 **Response:**
 ```json
 {
-  "explanation": "(1,3) is safe because:\n• clue at (1,1): ...\n• clue at (1,2): ..."
+  "cell": [1, 3],
+  "status": "proved",
+  "facts": [
+    {"kind": "clue", "cell": [1, 1], "text": "((¬mine(2,1) ∧ ¬mine(1,2)) ∧ (∀x.(¬mine(2,x))))"},
+    {"kind": "clue", "cell": [1, 2], "text": "(mine(4,3) ∧ (¬mine(1,2) ⇒ ¬mine(1,3)))"}
+  ],
+  "usesMineCount": false,
+  "mines": 3
 }
 ```
 
-Prover9 proves the cell is safe and lists the clues and facts the proof used. If it finds no proof within 1 s (typically for steps that need counting the mines), the response says so.
+Prover9 proves the cell is safe and lists the facts the proof used: clues (`kind: "clue"`), cells you visited (`"visited"`) and flags (`"flag"`); `usesMineCount` says whether it needed the number of mines. `status` is `"no_short_proof"` if Prover9 finds no proof within 1 s (typically steps that need counting the mines), and `"not_safe"` if the cell isn't provably safe.
 
 </details>
 
 <details>
 <summary><b>GET</b> <code>/api/hint_forced</code> - Get forced mine hints</summary>
 
-**Response:**
+**Response:** the game state (with the cells marked `forcedHint`), plus:
 ```json
 {
-  "forced_mines": [[3, 4], [5, 2]]
+  "forcedMines": [[3, 4], [5, 2]],
+  "info": "Forced mines: (3,4), (5,2)"
 }
 ```
 
-Cells identified as forced mines using Mace4 model checking.
+A cell is a forced mine when Mace4 finds no board that fits your knowledge with that cell safe. All unvisited, unflagged cells are checked.
 
 </details>
 
@@ -410,22 +429,25 @@ Cells identified as forced mines using Mace4 model checking.
 ## Project Structure
 
 ```
-MineFOL_Project/
-├── bin/                          # Compiled theorem provers
+MineFOL/
+├── bin/                          # Theorem provers (Linux x86-64 binaries)
 │   ├── prover9                   # FOL theorem prover
 │   └── mace4                     # Model finder
 │
 ├── Python/
 │   ├── src/                      # Core game logic
 │   │   ├── game_state.py         # Game state dataclass
-│   │   ├── generator.py          # Procedural game generation
+│   │   ├── generator.py          # Procedural game generation + solvability check
 │   │   ├── message_generator.py  # FOL clue generation (8 types)
+│   │   ├── message_translate.py  # Formulas -> display text (¬, ∧, ∀, ...)
 │   │   ├── logic_engine.py       # Prover9/Mace4 interface
-│   │   ├── minefol_writer.py     # FOL instance serialization
+│   │   ├── minefol_writer.py     # Writes Prover9/Mace4 input files
+│   │   ├── runner.py             # Runs the prover binaries with a timeout
+│   │   ├── parse_outputs.py      # Reads prover output
 │   │   ├── grid.py               # Grid utilities
 │   │   ├── console_play_generated.py  # Console player
 │   │   ├── verify_manual_board.py     # Board validator
-│   │   └── save_game.py          # Save/load functionality
+│   │   └── save_game.py          # Generates numbered puzzles
 │   │
 │   └── web/                      # Web interface
 │       ├── app.py                # Flask server & REST API
@@ -438,21 +460,20 @@ MineFOL_Project/
 ├── Prover/                       # Theorem prover configuration
 │   ├── base/                     # Base FOL axioms
 │   │   └── minefol_base.in       # Domain axioms
-│   ├── instances/                # Generated Mace4 inputs
-│   ├── queries/                  # Generated Prover9 inputs
-│   └── out/                      # Prover outputs
+│   ├── instances/                # Generated Mace4 inputs (temporary)
+│   ├── queries/                  # Generated Prover9 inputs (temporary)
+│   └── out/                      # Prover outputs (temporary)
 │
-├── build/games/                  # Pre-generated game instances
-│   ├── game_easy.json            # 4×4, 3 mines
-│   ├── game_medium.json          # 5×5, 4 mines
-│   ├── game_hard.json            # 6×6, 5-6 mines
-│   └── *_example.json            # Example puzzles
-│
-├── docs/
-│   └── Documentation.pdf         # Full project documentation
+├── build/games/                  # Puzzle library, one folder per category
+│   ├── easy/001.json, 002.json   # 4×4, 3 mines
+│   ├── medium/001.json, ...      # 5×5, 4 mines
+│   ├── hard/001.json, ...        # 6×6, 5 mines
+│   ├── custom/001.json           # Hand-made puzzles
+│   └── mace_prover_input_files/  # Example Prover9/Mace4 input files
+│   (python save_game.py hard 3 appends 3 new numbered Hard puzzles)
 │
 ├── screenshots/                  # UI screenshots
-│
+├── requirements.txt              # Python dependencies (Flask)
 └── README.md
 ```
 
