@@ -65,7 +65,8 @@ function clearHint(){
 }
 
 function showResult(res){
-  // Board actions return the new state, sometimes with an info or error message
+  // No game (it expired): show the error and keep the board.
+  if (!res.cells) return setStatus(res.error || "Something went wrong. Reload the page.", "error");
   state = res;
   const kind = (res.error || state.dead) ? "error" : state.success ? "success" : "info";
   setStatus(res.error || res.info || endMessage(), kind);
@@ -396,9 +397,10 @@ function countText(n, one, many){
 async function hintSafe(){
   showHintMessage("Checking your neighbours with Mace4...");
   const res = await api("/api/hint_safe");
+  if (!res.cells) return showHintMessage(res.error || "Something went wrong. Reload the page.");
   state = res;
   render();
-  if (res.error || state.dead) return showHintMessage(res.error || "The game is over.");
+  if (state.dead) return showHintMessage("The game is over.");
 
   const moves = res.safeMoves;
   if (moves.length === 0) {
@@ -412,9 +414,9 @@ async function hintSafe(){
 async function hintForced(){
   showHintMessage("Checking every cell with Mace4...");
   const res = await api("/api/hint_forced");
+  if (!res.cells) return showHintMessage(res.error || "Something went wrong. Reload the page.");
   state = res;
   render();
-  if (res.error) return showHintMessage(res.error);
 
   const mines = res.forcedMines;
   if (mines.length === 0) {

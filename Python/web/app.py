@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import os
 import re
 import sys
 import json
+import time
+import secrets
 from pathlib import Path
 from typing import Any, Dict, Tuple, List
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session
 
 THIS_FILE = Path(__file__).resolve()
 PROJECT_ROOT = THIS_FILE.parents[2]
@@ -22,10 +25,14 @@ from message_translate import parse_formula_for_display
 Coord = Tuple[int, int]
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
+app.secret_key = os.environ.get("MINEFOL_SECRET_KEY") or secrets.token_hex(32)
 ENGINE = LogicEngine()
 
-# In-memory sessions
+# In-memory sessions, one game per browser
 SESSIONS: Dict[str, Dict[str, Any]] = {}
+LAST_SEEN: Dict[str, float] = {}
+SESSION_IDLE_HOURS = 12
+NO_GAME = "Your game has expired. Reload the page to start again."
 
 
 def _parse_cell_key(k: str) -> Coord:
@@ -145,7 +152,19 @@ def _fact_for_player(fact: str, state: GameState, grid: Grid) -> dict:
 
 
 def _get_session_id() -> str:
-    return "default"
+    if "sid" not in session:
+        session["sid"] = secrets.token_hex(16)
+        _drop_idle_sessions()
+    LAST_SEEN[session["sid"]] = time.time()
+    return session["sid"]
+
+
+def _drop_idle_sessions() -> None:
+    cutoff = time.time() - SESSION_IDLE_HOURS * 3600
+    for sid, seen in list(LAST_SEEN.items()):
+        if seen < cutoff:
+            LAST_SEEN.pop(sid, None)
+            SESSIONS.pop(sid, None)
 
 
 @app.get("/")
@@ -189,7 +208,7 @@ def api_new_game():
 def api_show_solution():
     sid = _get_session_id()
     if sid not in SESSIONS:
-        return jsonify({"error": "No game"}), 400
+        return jsonify({"error": NO_GAME}), 400
 
     grid = Grid(n=SESSIONS[sid]["grid_n"])
     state: GameState = SESSIONS[sid]["state"]
@@ -219,10 +238,10 @@ def api_state():
 
     grid = Grid(n=SESSIONS[sid]["grid_n"])
     state: GameState = SESSIONS[sid]["state"]
-    session = SESSIONS[sid]
+    game = SESSIONS[sid]
 
     # Return state with NO safe move hints
-    return jsonify({"category": session["category"], "number": session["number"], **_state_to_payload(grid, state)})
+    return jsonify({"category": game["category"], "number": game["number"], **_state_to_payload(grid, state)})
 
 
 @app.post("/api/move")
@@ -234,7 +253,7 @@ def api_move():
 
     sid = _get_session_id()
     if sid not in SESSIONS:
-        return jsonify({"error": "No game"}), 400
+        return jsonify({"error": NO_GAME}), 400
 
     data = request.get_json(force=True)
     rr = int(data["r"])
@@ -277,7 +296,7 @@ def api_flag():
     #Flag a cell as mine. Uses Mace4 to check if forced.
     sid = _get_session_id()
     if sid not in SESSIONS:
-        return jsonify({"error": "No game"}), 400
+        return jsonify({"error": NO_GAME}), 400
 
     data = request.get_json(force=True)
     rr = int(data["r"])
@@ -335,7 +354,7 @@ def api_hint_safe():
     #Compute and show provably safe moves using Mace4 (Prover9 explains them on demand).
     sid = _get_session_id()
     if sid not in SESSIONS:
-        return jsonify({"error": "No game"}), 400
+        return jsonify({"error": NO_GAME}), 400
 
     grid = Grid(n=SESSIONS[sid]["grid_n"])
     state: GameState = SESSIONS[sid]["state"]
@@ -383,7 +402,7 @@ def api_explain_safe():
     #Explain why a cell is safe: Prover9 proves it and we list the facts the proof used.
     sid = _get_session_id()
     if sid not in SESSIONS:
-        return jsonify({"error": "No game"}), 400
+        return jsonify({"error": NO_GAME}), 400
 
     rr = int(request.args["r"])
     cc = int(request.args["c"])
@@ -422,7 +441,7 @@ def api_hint_forced():
 
     sid = _get_session_id()
     if sid not in SESSIONS:
-        return jsonify({"error": "No game"}), 400
+        return jsonify({"error": NO_GAME}), 400
 
     grid = Grid(n=SESSIONS[sid]["grid_n"])
     state: GameState = SESSIONS[sid]["state"]
