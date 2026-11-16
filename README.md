@@ -73,7 +73,7 @@
 <td width="50%">
 
 ### Smart Hint System
-- **Show safe moves** - neighbours that are provably safe (green)
+- **Show safe moves** - neighbours that are provably safe (green); currently only the orthogonal ones (up/down/left/right)
 - **Show forced mines** - cells that must be mines (red)
 - **Show proof** - the Prover9 proof behind a safe move, with the clues it used highlighted
 
@@ -228,7 +228,7 @@ python save_game.py hard 3    # adds 3 new Hard puzzles under the next free numb
 python save_game.py           # one new puzzle per difficulty
 ```
 
-New puzzles are validated (solvable without guessing), never overwrite existing ones, and appear in the web app after a page refresh. Hard puzzles can take several minutes each. Don't run the generator while the web app is being played: both use the same temporary prover files in `Prover/`.
+New puzzles are validated (solvable without guessing), never overwrite existing ones, and appear in the web app after a page refresh. Hard puzzles can take several minutes each. It's safe to generate while the web app is being played: every prover call uses its own temporary folder.
 
 ---
 
@@ -384,7 +384,7 @@ Safe cells highlighted (green) / forced mines highlighted (red)
 }
 ```
 
-Only the neighbours of your current cell are checked. A neighbour is safe when Mace4 finds no board that fits your knowledge with a mine on it.
+Currently only the orthogonal neighbours of your current cell (up/down/left/right) are checked. A neighbour is safe when Mace4 finds no board that fits your knowledge with a mine on it.
 
 </details>
 
@@ -458,11 +458,9 @@ MineFOL/
 │           └── style.css         # Styling
 │
 ├── Prover/                       # Theorem prover configuration
-│   ├── base/                     # Base FOL axioms
-│   │   └── minefol_base.in       # Domain axioms
-│   ├── instances/                # Generated Mace4 inputs (temporary)
-│   ├── queries/                  # Generated Prover9 inputs (temporary)
-│   └── out/                      # Prover outputs (temporary)
+│   └── base/                     # Base FOL axioms
+│       └── minefol_base.in       # Domain axioms
+│   (prover input/output files go to a temporary folder per call, deleted afterwards)
 │
 ├── build/games/                  # Puzzle library, one folder per category
 │   ├── easy/001.json, 002.json   # 4×4, 3 mines
