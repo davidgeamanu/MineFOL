@@ -56,7 +56,7 @@ function endMessage(){
   if (state.dead) return "Game over. Restart to try this puzzle again.";
   if (state.success) return "Solved: every mine is flagged.";
   const left = state.mines - state.flaggedCount;
-  if (left === state.mines) return `Flag all ${left} mines.`;
+  if (left === state.mines) return `GOAL: Flag all ${left} mines.`;
   return left === 1 ? "1 mine left to flag." : `${left} mines left to flag.`;
 }
 
