@@ -1,6 +1,8 @@
 from __future__ import annotations
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 from generator import EASY, MEDIUM, HARD, generate_game
@@ -18,6 +20,24 @@ def next_puzzle_path(category: str) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     numbers = [int(p.stem) for p in folder.glob("*.json") if p.stem.isdigit()]
     return folder / f"{max(numbers, default=0) + 1:03d}.json"
+
+
+def write_next_puzzle(game: dict, category: str) -> Path:
+    #Write to a temp file, then link it to the next free number (os.link fails if taken).
+    folder = GAMES_DIR / category.lower()
+    folder.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", dir=folder, suffix=".tmp", delete=False, encoding="utf-8") as tmp:
+        tmp.write(json.dumps(game, indent=2))
+    try:
+        while True:
+            out_path = next_puzzle_path(category)
+            try:
+                os.link(tmp.name, out_path)
+                return out_path
+            except FileExistsError:
+                pass
+    finally:
+        os.unlink(tmp.name)
 
 
 def is_duplicate(game: dict, category: str) -> bool:
@@ -57,8 +77,7 @@ def save(diff_name: str, seed: int | None = None) -> Path | None:
         print("\n    Skipped: same puzzle as one already saved")
         return None
 
-    out_path = next_puzzle_path(diff_name)
-    out_path.write_text(json.dumps(game, indent=2), encoding="utf-8")
+    out_path = write_next_puzzle(game, diff_name)
 
     print(f"\n    Saved to: {out_path.relative_to(PROJECT_ROOT)}")
     return out_path
