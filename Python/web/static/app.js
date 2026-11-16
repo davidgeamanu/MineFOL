@@ -11,8 +11,8 @@ let dragKey = null;   // cell of the clue being dragged
 const ICONS = {
   check: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   here:  '<svg class="icon" viewBox="0 0 24 24" aria-label="You"><circle cx="12" cy="12" r="7.5"/><circle class="solid" cx="12" cy="12" r="3"/></svg>',
-  flag:  '<svg class="icon" viewBox="0 0 24 24" aria-label="Flag"><path d="M7 21V4"/><path d="M7 4.5h10l-2.5 4 2.5 4H7"/></svg>',
-  mine:  '<svg class="icon" viewBox="0 0 24 24" aria-label="Mine"><circle class="solid" cx="12" cy="12" r="6.5"/><circle class="shine" cx="9.6" cy="9.6" r="1.7"/></svg>',
+  flag:  '<svg class="icon" viewBox="0 0 24 24" aria-label="Flag"><path d="M4.6 2.8l3.8 18.6M4.9 4.4C7.5 1.8 11.5 2.2 12.5 5S16.9 7.4 19.8 4.6C19.2 9.6 16.4 13 13.6 11.4S9 9.4 6.6 12.6"/></svg>',
+  mine:  '<svg class="icon" viewBox="0 0 24 24" aria-label="Mine"><circle cx="12" cy="15" r="6.5"/><path d="M10.4 8.6V6.3h3.2v2.3M12 6.3c0-1.4.9-2.4 2.4-2.6M15.9 1.9l.8-1M16.7 3.7h1.4M15.9 5.5l.8 1M8.1 13.6a4.2 4.2 0 0 1 2.2-2.5"/></svg>',
   // Small page in the corner of cells whose clue you have read
   clue:  '<svg class="clueMark" viewBox="0 0 24 24"><title>Clue read here</title><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h4"/></svg>',
 };
