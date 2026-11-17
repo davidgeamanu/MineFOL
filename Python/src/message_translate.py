@@ -25,6 +25,7 @@ def parse_formula_for_display(msg: str, grid: Grid) -> str:
     - | -> ∨
     - -> -> ⇒
     - <-> -> ⇔
+    - - (not) -> ¬
     """
     # First convert constants to coordinates
     display = consts_to_coords(msg, grid)
@@ -36,7 +37,6 @@ def parse_formula_for_display(msg: str, grid: Grid) -> str:
     display = display.replace('->', '⇒')
     display = display.replace(' & ', ' ∧ ')
     display = display.replace(' | ', ' ∨ ')
-
-    display = re.sub(r'-mine', '¬mine', display)
+    display = display.replace('-', '¬')
 
     return display
