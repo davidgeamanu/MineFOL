@@ -1,3 +1,4 @@
 # Python packages for the web app (everything else is the standard library).
 # The theorem provers are the bundled binaries in bin/, not Python packages.
 flask==3.1.3
+gunicorn==26.2.0

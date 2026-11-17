@@ -1,0 +1,14 @@
+.git/
+.venv/
+venv/
+.vscode/
+.idea/
+docs/
+screenshots/
+Prover/
+**/__pycache__/
+**/*.py[cod]
+build/games/mace_prover_input_files/
+build/games/**/*.tmp
+.env
+.env.local
