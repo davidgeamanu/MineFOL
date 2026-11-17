@@ -53,7 +53,7 @@
 
 ### Automated Reasoning
 - **Mace4** for finding safe moves and forced mines
-- **Prover9** for proofs explaining why a move is safe
+- **Prover9** for proofs explaining why a cell is safe or a mine
 - Real-time theorem proving integration
 - Solvability validation on generation
 
@@ -75,7 +75,7 @@
 ### Smart Hint System
 - **Show safe moves** - neighbours that are provably safe (green); currently only the orthogonal ones (up/down/left/right)
 - **Show forced mines** - cells that must be mines (red)
-- **Show proof** - the Prover9 proof behind a safe move, with the clues it used highlighted
+- **Show proof** - the Prover9 proof behind a safe move or a forced mine, with the clues it used highlighted
 
 </td>
 </tr>
@@ -151,7 +151,7 @@
 ### Logic Systems
 - **First-Order Logic (FOL)** - Formal language for clues
 - **Mace4** - Searches for boards that fit the clues: finds safe cells and forced mines, and validates generated puzzles
-- **Prover9** - Proves `-mine(r,c)` to explain why a cell is safe
+- **Prover9** - Proves `-mine(r,c)` or `mine(r,c)` to explain why a cell is safe or a mine
 
 ---
 
@@ -265,7 +265,7 @@ Player requests a hint → Mace4 checks each cell: is there any board that fits
                               ↓
 Safe cells highlighted (green) / forced mines highlighted (red)
                               ↓
-"Show proof" on a safe cell → Prover9 proves it and lists the clues it used
+"Show proof" on a hint → Prover9 proves it and lists the clues it used
 ```
 
 ---
@@ -372,6 +372,7 @@ Safe cells highlighted (green) / forced mines highlighted (red)
 | `GET` | `/hint_safe` | Find provably safe moves (Mace4) |
 | `GET` | `/explain_safe?r=&c=` | Explain why a cell is safe (Prover9 proof) |
 | `GET` | `/hint_forced` | Find forced mines (Mace4) |
+| `GET` | `/explain_mine?r=&c=` | Explain why a cell must be a mine (Prover9 proof) |
 
 <details>
 <summary><b>GET</b> <code>/api/hint_safe</code> - Get safe move hints</summary>
@@ -421,6 +422,13 @@ Prover9 proves the cell is safe and lists the facts the proof used: clues (`kind
 ```
 
 A cell is a forced mine when Mace4 finds no board that fits your knowledge with that cell safe. All unvisited, unflagged cells are checked.
+
+</details>
+
+<details>
+<summary><b>GET</b> <code>/api/explain_mine?r=4&c=3</code> - Explain a forced mine</summary>
+
+**Response:** the same as `/api/explain_safe`, but Prover9 proves the cell is a mine. `status` is `"not_mine"` if the cell isn't a forced mine.
 
 </details>
 

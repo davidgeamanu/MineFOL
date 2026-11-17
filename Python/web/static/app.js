@@ -408,7 +408,7 @@ async function hintSafe(){
       "This hint only checks the cells next to you. Step back onto another visited cell, or try Show forced mines.");
   }
   showHintMessage(countText(moves.length, "1 safe move next to you:", "safe moves next to you:"));
-  for (const [r, c] of moves) qs("hintList").appendChild(safeMoveRow(r, c));
+  for (const [r, c] of moves) qs("hintList").appendChild(hintRow(r, c, false));
 }
 
 async function hintForced(){
@@ -423,27 +423,23 @@ async function hintForced(){
     return showHintMessage("No forced mines with what you know so far.", "Collect more clues, then check again.");
   }
   showHintMessage(countText(mines.length, "1 cell must be a mine:", "cells must be mines:"));
-  for (const [r, c] of mines) {
-    const row = el("div", "hintRow mine");
-    row.append(el("span", "badge", `(${r},${c})`), el("span", "hintLabel", "Must be a mine"));
-    qs("hintList").appendChild(row);
-  }
+  for (const [r, c] of mines) qs("hintList").appendChild(hintRow(r, c, true));
 }
 
-function safeMoveRow(r, c){
+function hintRow(r, c, isMine){
   // "(1,3)  Provably safe  [Show proof]", with the proof unfolding underneath
-  const row = el("div", "hintRow safe");
+  const row = el("div", isMine ? "hintRow mine" : "hintRow safe");
   const head = el("div", "hintHead");
   const toggle = el("button", "proofToggle", "Show proof");
-  head.append(el("span", "badge", `(${r},${c})`), el("span", "hintLabel", "Provably safe"), toggle);
+  head.append(el("span", "badge", `(${r},${c})`), el("span", "hintLabel", isMine ? "Must be a mine" : "Provably safe"), toggle);
   const proof = el("div", "proof");
   proof.hidden = true;
   row.append(head, proof);
-  toggle.addEventListener("click", () => toggleProof(r, c, toggle, proof));
+  toggle.addEventListener("click", () => toggleProof(r, c, isMine, toggle, proof));
   return row;
 }
 
-async function toggleProof(r, c, toggle, proof){
+async function toggleProof(r, c, isMine, toggle, proof){
   const opening = proof.hidden;
   closeProofs();   // one proof open at a time
   if (!opening) return;
@@ -451,8 +447,8 @@ async function toggleProof(r, c, toggle, proof){
   proof.hidden = false;
   toggle.textContent = "Hide proof";
   proof.textContent = "Asking Prover9...";
-  const res = await api(`/api/explain_safe?r=${r}&c=${c}`);
-  if (!proof.hidden) renderProof(proof, res);   // unless it was closed while waiting
+  const res = await api(`/api/explain_${isMine ? "mine" : "safe"}?r=${r}&c=${c}`);
+  if (!proof.hidden) renderProof(proof, res, isMine);   // unless it was closed while waiting
 }
 
 function closeProofs(){
@@ -461,13 +457,14 @@ function closeProofs(){
   markProofCells([]);
 }
 
-function renderProof(box, res){
+function renderProof(box, res, isMine){
   box.textContent = "";
   if (res.error) return box.appendChild(el("p", "proofNote", res.error));
   if (res.status === "not_safe") return box.appendChild(el("p", "proofNote", "Not provably safe with what you know so far."));
+  if (res.status === "not_mine") return box.appendChild(el("p", "proofNote", "Not a forced mine with what you know so far."));
   if (res.status === "no_short_proof") {
     return box.appendChild(el("p", "proofNote",
-      "Safe, but Prover9 found no short proof. This usually means it follows from counting the mines."));
+      `${isMine ? "A mine" : "Safe"}, but Prover9 found no short proof. This usually means it follows from counting the mines.`));
   }
 
   box.appendChild(el("p", "proofNote", "Follows from:"));

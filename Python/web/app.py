@@ -398,8 +398,17 @@ def api_hint_safe():
 
 @app.get("/api/explain_safe")
 def api_explain_safe():
-
     #Explain why a cell is safe: Prover9 proves it and we list the facts the proof used.
+    return _explain(prove_mine=False)
+
+
+@app.get("/api/explain_mine")
+def api_explain_mine():
+    #Explain why a cell must be a mine, the same way.
+    return _explain(prove_mine=True)
+
+
+def _explain(prove_mine: bool):
     sid = _get_session_id()
     if sid not in SESSIONS:
         return jsonify({"error": NO_GAME}), 400
@@ -414,14 +423,20 @@ def api_explain_safe():
     for (fr, fc) in state.flagged:
         kb.append(f"mine({fr},{fc})")
 
-    # Only explain cells that really are safe (Mace4 decides, Prover9 explains)
-    if not ENGINE.is_provably_safe(state.n, state.mines, kb, rr, cc):
+    # Only explain what Mace4 confirms (Mace4 decides, Prover9 explains)
+    if prove_mine:
+        if not ENGINE.is_forced_mine(state.n, state.mines, kb, rr, cc):
+            return jsonify({"cell": [rr, cc], "status": "not_mine"})
+    elif not ENGINE.is_provably_safe(state.n, state.mines, kb, rr, cc):
         return jsonify({"cell": [rr, cc], "status": "not_safe"})
 
-    print(f"[EXPLAIN] Asking Prover9 why ({rr},{cc}) is safe...")
-    result = ENGINE.explain_safe(state.n, state.mines, kb, rr, cc)
+    print(f"[EXPLAIN] Asking Prover9 why ({rr},{cc}) is {'a mine' if prove_mine else 'safe'}...")
+    if prove_mine:
+        result = ENGINE.explain_mine(state.n, state.mines, kb, rr, cc)
+    else:
+        result = ENGINE.explain_safe(state.n, state.mines, kb, rr, cc)
 
-    # No proof within the time limit: usually the cell is safe by counting the mines
+    # No proof within the time limit: usually it follows from counting the mines
     if result is None:
         return jsonify({"cell": [rr, cc], "status": "no_short_proof"})
 

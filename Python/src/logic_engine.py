@@ -20,10 +20,11 @@ def _run_mace4(params: GameParams, messages: List[str], timeout: float) -> str:
         return read_text(Path(tmp) / "output.txt")
 
 
-def _run_prover9(params: GameParams, messages: List[str], target_r: int, target_c: int, timeout: float) -> str:
+def _run_prover9(params: GameParams, messages: List[str], target_r: int, target_c: int, timeout: float,
+                 prove_mine: bool = False) -> str:
     with tempfile.TemporaryDirectory(prefix="minefol_") as tmp:
         write_prover_query(project_root=Path(tmp), params=params, messages_so_far=messages,
-                           target_r=target_r, target_c=target_c, out_path_rel="query.in")
+                           target_r=target_r, target_c=target_c, out_path_rel="query.in", prove_mine=prove_mine)
         run_prover9(f"{tmp}/query.in", f"{tmp}/output.txt", timeout=timeout)
         return read_text(Path(tmp) / "output.txt")
 
@@ -43,7 +44,17 @@ class LogicEngine:
         #Returns (facts from messages_so_far the proof used, whether it used the mine count),
         #or None if no proof was found in time. Proofs either come in < 0.1s or not at all
         #(counting steps), so a short timeout is enough.
-        out = _run_prover9(GameParams(n=n, mines=mines), messages_so_far, target_r, target_c, timeout=timeout)
+        return self._explain(n, mines, messages_so_far, target_r, target_c, timeout, prove_mine=False)
+
+    def explain_mine(self, n: int, mines: int, messages_so_far: List[str], target_r: int, target_c: int, timeout: float = 1.0) -> tuple[List[str], bool] | None:
+
+        #Same as explain_safe, for a proof that the cell is a mine.
+        return self._explain(n, mines, messages_so_far, target_r, target_c, timeout, prove_mine=True)
+
+    def _explain(self, n: int, mines: int, messages_so_far: List[str], target_r: int, target_c: int,
+                 timeout: float, prove_mine: bool) -> tuple[List[str], bool] | None:
+        out = _run_prover9(GameParams(n=n, mines=mines), messages_so_far, target_r, target_c,
+                           timeout=timeout, prove_mine=prove_mine)
         if not prover9_proved(out):
             return None
 

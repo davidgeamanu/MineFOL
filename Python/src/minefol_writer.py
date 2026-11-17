@@ -133,8 +133,8 @@ def write_mace_instance(project_root: Path, params: GameParams, messages: List[s
     return out_path
 
 def write_prover_query(project_root: Path, params: GameParams, messages_so_far: List[str],
-                       target_r: int, target_c: int, out_path_rel: str) -> Path:
-    #Prover9 query to prove -mine(rX,rY) (note: rows/cols are r1..rN constants).
+                       target_r: int, target_c: int, out_path_rel: str, prove_mine: bool = False) -> Path:
+    #Prover9 query to prove -mine(rX,rY), or mine(rX,rY) if prove_mine (rows/cols are r1..rN constants).
     #We represent coordinate (i,j) as mine(ri,rj).
     out_path = (project_root / out_path_rel).resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -171,7 +171,7 @@ def write_prover_query(project_root: Path, params: GameParams, messages_so_far: 
     lines.append("end_of_list.")
     lines.append("")
     lines.append("formulas(goals).")
-    lines.append(f"-mine({tr},{tc}).")
+    lines.append(f"mine({tr},{tc})." if prove_mine else f"-mine({tr},{tc}).")
     lines.append("end_of_list.")
     lines.append("")
 

@@ -176,7 +176,8 @@ button:disabled:hover{background:var(--surface); border-color:var(--border)}
 .hintTip{margin-top:4px; font-size:15px; color:var(--muted)}
 .hintRow{border:1px solid var(--border); border-radius:10px; overflow:hidden; font-size:15px}
 .hintRow.safe{border-color:var(--safe)}
-.hintRow.mine{border-color:var(--danger); background:var(--danger-soft); display:flex; align-items:center; gap:10px; padding:9px 12px}
+.hintRow.mine{border-color:var(--danger)}
+.hintRow.mine .hintHead{background:var(--danger-soft)}
 .hintHead{display:flex; align-items:center; gap:10px; padding:8px 8px 8px 12px; background:var(--safe-soft)}
 .hintLabel{margin-right:auto}
 .proofToggle{font-size:14px; padding:5px 10px}
