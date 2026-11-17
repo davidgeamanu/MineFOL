@@ -64,7 +64,8 @@
 *{box-sizing:border-box}
 body{
   margin:0;
-  height:100vh;
+  zoom:var(--zoom, 1);
+  height:calc(100vh / var(--zoom, 1));   /* zoom also scales vh, so undo it to fill the window */
   display:flex;
   flex-direction:column;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
@@ -300,7 +301,7 @@ button:disabled:hover{background:var(--surface); border-color:var(--border)}
   /* Cells shrink so the whole board fits the window height without scrolling.
      Everything above and below the board takes about 380px, plus 8px of gap per row;
      --rows is the board size, set by app.js. */
-  --cellSize: clamp(40px, calc((100vh - 390px) / var(--rows, 6) - 8px), var(--maxCell));
+  --cellSize: clamp(40px, calc((100vh / var(--zoom, 1) - 390px) / var(--rows, 6) - 8px), var(--maxCell));
   display:grid;
   gap:8px;
   padding:16px;
@@ -364,6 +365,11 @@ button:disabled:hover{background:var(--surface); border-color:var(--border)}
   stroke-linecap:round;
   stroke-linejoin:round;
   opacity:0.8;
+}
+
+/* ---- Wide screens: everything at 90% (like browser zoom 90%), so the three columns have room ---- */
+@media (min-width: 1280px){
+  :root{--zoom: 0.9}
 }
 
 /* ---- Laptops: two columns, status and hints above the knowledge base, board on the right ---- */
