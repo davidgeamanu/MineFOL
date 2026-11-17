@@ -6,7 +6,7 @@ let kbShown = 0;      // clues in the knowledge base at the last render
 let kbOrder = [];     // cells ("r,c") in the order the player arranged the knowledge base
 let dragKey = null;   // cell of the clue being dragged
 
-// Board icons: plain line drawings in the style of logic-textbook diagrams.
+// Board icons: plain line drawings
 // They use the cell's text colour (currentColor), so CSS decides their colour.
 const ICONS = {
   check: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
@@ -260,6 +260,8 @@ function handleKey(e){
 
   if(!dir) return;
   e.preventDefault();
+  // A clicked button keeps focus: drop it, so it loses its outline and Space/Enter can't press it
+  if (document.activeElement instanceof HTMLButtonElement) document.activeElement.blur();
 
   const r = state.pos[0] + dir[0];
   const c = state.pos[1] + dir[1];
