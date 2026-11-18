@@ -1,7 +1,7 @@
 from __future__ import annotations
+import argparse
 import json
 import os
-import sys
 import tempfile
 from pathlib import Path
 
@@ -49,21 +49,22 @@ def is_duplicate(game: dict, category: str) -> bool:
     return False
 
 
-def save(diff_name: str, seed: int | None = None) -> Path | None:
+def save(diff_name: str, seed: int | None = None, mines: int | None = None, clues: int | None = None) -> Path | None:
     """
     Generate a MineFOL game and save it as the next puzzle of its difficulty.
     Args:
         diff_name: "Easy", "Medium", or "Hard"
         seed: Random seed
+        mines, clues: fixed mine count and number of clue cells (default: random in the difficulty's range)
     Returns the new file, or None if the puzzle was a duplicate.
     """
     diff = {"Easy": EASY, "Medium": MEDIUM, "Hard": HARD}[diff_name]
 
     print(f"Generating {diff_name} game...")
     print(f"  Grid: {diff.n}x{diff.n}")
-    print(f"  Mines: {diff.mines}")
 
-    game = generate_game(diff, seed=seed)
+    game = generate_game(diff, seed=seed, mines=mines, message_cells=clues)
+    print(f"  Mines: {game['mines']}")
 
     grid = Grid(n=game['n'])
     print(f"\n  Generated {len(game['messages_by_cell'])} messages")
@@ -84,11 +85,17 @@ def save(diff_name: str, seed: int | None = None) -> Path | None:
 
 
 if __name__ == "__main__":
-    # Usage: python save_game.py [Easy|Medium|Hard] [count]
+    # Usage: python save_game.py [Easy|Medium|Hard] [count] [--mines N] [--clues N]
     #   no arguments: one new puzzle per difficulty
     #   seed=None triggers random generation in generator.py
-    names = [sys.argv[1].capitalize()] if len(sys.argv) > 1 else ["Easy", "Medium", "Hard"]
-    count = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    parser = argparse.ArgumentParser(description="Generate MineFOL puzzles.")
+    parser.add_argument("difficulty", nargs="?", help="Easy, Medium or Hard (default: one of each)")
+    parser.add_argument("count", nargs="?", type=int, default=1, help="how many puzzles (default: 1)")
+    parser.add_argument("--mines", type=int, help="fixed mine count (default: random in the difficulty's range)")
+    parser.add_argument("--clues", type=int, help="fixed number of clue cells (default: random in the range)")
+    args = parser.parse_args()
+    names = [args.difficulty.capitalize()] if args.difficulty else ["Easy", "Medium", "Hard"]
+    count = args.count
 
     print("=" * 70)
     print("MineFOL Game Generator")
@@ -98,7 +105,7 @@ if __name__ == "__main__":
     for name in names:
         for _ in range(count):
             try:
-                save(name, seed=None)
+                save(name, seed=None, mines=args.mines, clues=args.clues)
                 print()
             except Exception as e:
                 print(f"  ✗ Failed to generate {name}: {e}")

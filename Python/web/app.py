@@ -53,8 +53,8 @@ def _load_puzzle(category: str, number: int) -> dict:
 def _list_puzzles() -> list[dict]:
 
     #Every folder in build/games holding numbered puzzles (001.json, 002.json, ...) is a category,
-    #so adding a category means adding a folder. Categories are ordered by the board size and
-    #mine count of their first puzzle, which puts Easy < Medium < Hard.
+    #so adding a category means adding a folder. Categories are ordered by the board size of their
+    #first puzzle (Easy < Medium < Hard); at the same size the generated ones come before e.g. Custom.
 
     categories = []
     for folder in sorted(GAMES_DIR.iterdir()):
@@ -62,7 +62,7 @@ def _list_puzzles() -> list[dict]:
         if not numbers:
             continue
         first = _load_puzzle(folder.name, numbers[0])
-        categories.append(((first["n"], first["mines"]), {
+        categories.append(((first["n"], folder.name not in ("easy", "medium", "hard")), {
             "name": folder.name,
             "label": folder.name.capitalize(),
             "numbers": numbers,

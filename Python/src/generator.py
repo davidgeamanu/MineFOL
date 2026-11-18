@@ -16,17 +16,17 @@ Coord = Tuple[int, int]
 class Difficulty:
     name: str
     n: int
-    mines: int
-    message_cells: int
+    mines: Tuple[int, int]          # each puzzle gets a random count in this range (inclusive)
+    message_cells: Tuple[int, int]
 
 
 # Adjust for reliability/speed:
 # Easy: 4x4
-EASY = Difficulty("Easy", n=4, mines=3, message_cells=8)
+EASY = Difficulty("Easy", n=4, mines=(2, 4), message_cells=(7, 9))
 # Medium: 5x5
-MEDIUM = Difficulty("Medium", n=5, mines=4, message_cells=14)
+MEDIUM = Difficulty("Medium", n=5, mines=(3, 5), message_cells=(12, 15))
 # Hard: 6x6
-HARD = Difficulty("Hard", n=6, mines=5, message_cells=17)
+HARD = Difficulty("Hard", n=6, mines=(4, 5), message_cells=(16, 18))
 
 
 def random_mines(grid: Grid, mine_count: int, start: Coord = (1, 1)) -> Set[Coord]:
@@ -236,20 +236,25 @@ def generate_rich_messages(grid: Grid, mines: Set[Coord], safe: Set[Coord], chil
     return messages
 
 
-def generate_game_rich(diff: Difficulty, seed: int | None = None, max_tries: int = 2000) -> dict:
+def generate_game_rich(diff: Difficulty, seed: int | None = None, max_tries: int = 2000,
+                       mines: int | None = None, message_cells: int | None = None) -> dict:
     if seed is not None:
         random.seed(seed)
+
+    # Counts are picked once per puzzle (not per attempt), unless given
+    mine_count = mines if mines is not None else random.randint(*diff.mines)
+    clue_cells = message_cells if message_cells is not None else random.randint(*diff.message_cells)
 
     grid = Grid(n=diff.n)
     start: Coord = (1, 1)
 
-    print(f"Generating {diff.name} game...")
+    print(f"Generating {diff.name} game ({mine_count} mines, {clue_cells} clue cells)...")
 
     for attempt in range(1, max_tries + 1):
         if attempt % 10 == 0:
             print(f" [Attempt {attempt}]", end="", flush=True)
 
-        mines = random_mines(grid, diff.mines, start=start)
+        mines = random_mines(grid, mine_count, start=start)
         safe = {(r, c) for r in range(1, grid.n + 1) for c in range(1, grid.n + 1)} - mines
 
         if start not in safe: continue
@@ -263,7 +268,7 @@ def generate_game_rich(diff: Difficulty, seed: int | None = None, max_tries: int
 
         candidates = [c for c in safe if c not in msg_cells]
         random.shuffle(candidates)
-        needed = max(0, diff.message_cells - len(msg_cells))
+        needed = max(0, clue_cells - len(msg_cells))
         msg_cells.update(candidates[:needed])
 
         messages = generate_rich_messages(
@@ -289,7 +294,7 @@ def generate_game_rich(diff: Difficulty, seed: int | None = None, max_tries: int
         print(f"\n[Success] Game generated on attempt {attempt}")
         return {
             "n": diff.n,
-            "mines": diff.mines,
+            "mines": mine_count,
             "start": [1, 1],
             "mine_cells": sorted([[r, c] for (r, c) in mines]),
             "messages_by_cell": {f"{r},{c}": m for (r, c), m in messages.items()}
@@ -298,5 +303,6 @@ def generate_game_rich(diff: Difficulty, seed: int | None = None, max_tries: int
     raise RuntimeError(f"Failed to generate game after {max_tries} attempts")
 
 
-def generate_game(diff: Difficulty, seed: int | None = None, max_tries: int = 2000) -> dict:
-    return generate_game_rich(diff, seed=seed, max_tries=max_tries)
+def generate_game(diff: Difficulty, seed: int | None = None, max_tries: int = 2000,
+                  mines: int | None = None, message_cells: int | None = None) -> dict:
+    return generate_game_rich(diff, seed=seed, max_tries=max_tries, mines=mines, message_cells=message_cells)
