@@ -493,8 +493,8 @@ MineFOL/
 │   (prover input/output files go to a temporary folder per call, deleted afterwards)
 │
 ├── build/games/                  # Puzzle library, one folder per category
-│   ├── easy/001.json, 002.json   # 4×4, 2–4 mines
-│   ├── medium/001.json, ...      # 5×5, 3–5 mines
+│   ├── easy/001.json … 010.json  # 4×4, 2–4 mines, easiest first
+│   ├── medium/001.json … 010.json # 5×5, 3–5 mines, easiest first
 │   ├── hard/001.json, ...        # 6×6, 4–5 mines
 │   ├── custom/001.json           # Hand-made puzzles
 │   └── mace_prover_input_files/  # Example Prover9/Mace4 input files
