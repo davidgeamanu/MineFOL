@@ -185,8 +185,12 @@ def inject_global_clue(grid: Grid, mines: Set[Coord], messages: Dict[Coord, str]
 
 def generate_rich_messages(grid: Grid, mines: Set[Coord], safe: Set[Coord], children: Dict[Coord, List[Coord]], message_cells: Set[Coord], difficulty: str) -> Dict[Coord, str]:
     msg_gen = MessageGenerator(grid.n, mines, safe)
-    messages: Dict[Coord, str] = {}
+    engine = LogicEngine()
     start = (1, 1)
+
+    # Start clue (with the global clue) first, so every later clue can be checked against it
+    messages: Dict[Coord, str] = {start: msg_gen.generate_helpful_start_message()}
+    inject_global_clue(grid, mines, messages)
 
     if difficulty == "Easy":
         p_unlock = 0.85
@@ -197,17 +201,25 @@ def generate_rich_messages(grid: Grid, mines: Set[Coord], safe: Set[Coord], chil
 
     for cell in message_cells:
         if cell == start:
-            messages[cell] = msg_gen.generate_helpful_start_message()
             continue
 
-        complex_part = msg_gen.generate_message(difficulty)
+        # Draw again (up to 10 times) if the clues so far, plus standing on this cell, already imply it
+        known = list(messages.values()) + [f"-mine({cell[0]},{cell[1]})"]
+        for _ in range(10):
+            complex_part = msg_gen.generate_message(difficulty)
+            if not engine.is_implied(grid.n, len(mines), known, complex_part):
+                break
 
         if random.random() < p_unlock:
             target = _pick_unlock_target(grid, cell, children, safe)
             if target is not None:
                 tr, tc = target
                 cr, cc = cell
-                unlock_part = f"(-mine({cr},{cc}) -> -mine({tr},{tc}))"
+                # Sometimes the same fact the other way round (contrapositive), for variety
+                if random.random() < 0.4:
+                    unlock_part = f"(mine({tr},{tc}) -> mine({cr},{cc}))"
+                else:
+                    unlock_part = f"(-mine({cr},{cc}) -> -mine({tr},{tc}))"
 
                 if difficulty in ("Medium", "Hard") and random.random() < 0.35:
                     u = _pick_unlock_target(grid, cell, children, safe)
@@ -262,12 +274,6 @@ def generate_game_rich(diff: Difficulty, seed: int | None = None, max_tries: int
             message_cells=msg_cells,
             difficulty=diff.name
         )
-
-        if start not in messages:
-            msg_gen = MessageGenerator(grid.n, mines, safe)
-            messages[start] = msg_gen.generate_helpful_start_message()
-
-        inject_global_clue(grid, mines, messages)
 
         engine = LogicEngine()
 

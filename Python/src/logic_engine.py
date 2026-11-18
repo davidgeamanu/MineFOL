@@ -38,6 +38,13 @@ class LogicEngine:
         out = _run_mace4(GameParams(n=n, mines=mines), messages, timeout=2.0)
         return mace_found_model(out)
 
+    def is_implied(self, n: int, mines: int, messages: List[str], clue: str, timeout: float = 0.5) -> bool:
+
+        #True if Mace4 proves the messages imply the clue (no board where they hold and the clue fails).
+        #A timeout proves nothing, so it counts as not implied.
+        out = _run_mace4(GameParams(n=n, mines=mines), messages + [f"-({clue})"], timeout=timeout)
+        return mace_exhausted(out)
+
     def explain_safe(self, n: int, mines: int, messages_so_far: List[str], target_r: int, target_c: int, timeout: float = 1.0) -> tuple[List[str], bool] | None:
 
         #Prover9 proof that the cell is safe, used to explain a hint.

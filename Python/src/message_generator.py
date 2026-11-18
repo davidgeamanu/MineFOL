@@ -10,6 +10,9 @@ Message categories:
 6. Universal quantifiers: all x.(mine(x,c) -> ...) or all x.(mine(r,x) -> ...)
 7. Existential quantifiers: exists x.mine(x,c) or -exists x.mine(x,c)
 8. Mixed: exists x.mine(x,3) -> exists x.mine(x,8)
+
+A clue type that doesn't fit the board (e.g. no empty row for "row r is safe") returns None,
+and generate_message picks another type.
 """
 from __future__ import annotations
 import random
@@ -122,30 +125,27 @@ class MessageGenerator:
 
     # CATEGORY 5: Biconditionals
 
-    def msg_biconditional_symmetric(self) -> str:
-        #mine(r,c) <-> mine(c,r) - symmetric mines.
-        r, c = self.random_mine()
-        # Check if (c,r) is also a mine
-        if (c, r) in self.mines:
+    def msg_biconditional_symmetric(self) -> str | None:
+        #mine(r,c) <-> mine(c,r) - a cell and its mirror across the diagonal are both mines or both safe.
+        pairs = [(r, c) for r in range(1, self.n+1) for c in range(r+1, self.n+1)
+                 if ((r, c) in self.mines) == ((c, r) in self.mines)]
+
+        if pairs:
+            r, c = random.choice(pairs)
             return f"(mine({r},{c}) <-> mine({c},{r}))"
         else:
-            # Fall back to different message
-            return self.msg_implication_mine_to_mine()
+            return None
 
-    def msg_biconditional_row_col(self) -> str:
+    def msg_biconditional_row_col(self) -> str | None:
         #all x.(mine(x,c1) <-> mine(x,c2)) - two columns have identical mine patterns.
-        c1 = random.randint(1, self.n)
-        c2 = random.randint(1, self.n)
-        while c2 == c1:
-            c2 = random.randint(1, self.n)
+        pairs = [(c1, c2) for c1 in range(1, self.n+1) for c2 in range(c1+1, self.n+1)
+                 if all(((r, c1) in self.mines) == ((r, c2) in self.mines) for r in range(1, self.n+1))]
 
-        col1_mines = {r for r in range(1, self.n+1) if (r, c1) in self.mines}
-        col2_mines = {r for r in range(1, self.n+1) if (r, c2) in self.mines}
-
-        if col1_mines == col2_mines:
+        if pairs:
+            c1, c2 = random.choice(pairs)
             return f"(all x (mine(x,{c1}) <-> mine(x,{c2})))"
         else:
-            return self.msg_direct_mine()
+            return None
 
     # CATEGORY 6: Universal Quantifiers
 
@@ -178,16 +178,16 @@ class MessageGenerator:
             other = self.random_coord()
             return f"(all x (mine(x,{c}) -> mine({other[0]},{other[1]})))"
 
-    def msg_universal_no_mines_on_diagonal(self) -> str:
+    def msg_universal_no_mines_on_diagonal(self) -> str | None:
         #all x.(-mine(x,x)) - no mines on main diagonal.
         diagonal_clear = all((i, i) not in self.mines for i in range(1, self.n+1))
 
         if diagonal_clear:
             return "(all x (-mine(x,x)))"
         else:
-            return self.msg_direct_safe()
+            return None
 
-    def msg_universal_row_all_safe(self) -> str:
+    def msg_universal_row_all_safe(self) -> str | None:
         #all x.(-mine(r,x)) - entire row r is safe.
         # Find a row with no mines
         safe_rows = [r for r in range(1, self.n+1)
@@ -197,7 +197,7 @@ class MessageGenerator:
             r = random.choice(safe_rows)
             return f"(all x (-mine({r},x)))"
         else:
-            return self.msg_direct_safe()
+            return None
 
     # CATEGORY 7: Existential Quantifiers
 
@@ -224,7 +224,7 @@ class MessageGenerator:
         else:
             return self.msg_direct_mine()
 
-    def msg_no_mines_in_row(self) -> str:
+    def msg_no_mines_in_row(self) -> str | None:
         #-(exists x.mine(r,x)) - no mines in row r.
         safe_rows = [r for r in range(1, self.n+1)
                     if all((r, c) not in self.mines for c in range(1, self.n+1))]
@@ -233,9 +233,9 @@ class MessageGenerator:
             r = random.choice(safe_rows)
             return f"(-(exists x mine({r},x)))"
         else:
-            return self.msg_direct_safe()
+            return None
 
-    def msg_no_mines_in_col(self) -> str:
+    def msg_no_mines_in_col(self) -> str | None:
         #-(exists x.mine(x,c)) - no mines in column c.
         safe_cols = [c for c in range(1, self.n+1)
                     if all((r, c) not in self.mines for r in range(1, self.n+1))]
@@ -244,11 +244,11 @@ class MessageGenerator:
             c = random.choice(safe_cols)
             return f"(-(exists x mine(x,{c})))"
         else:
-            return self.msg_direct_safe()
+            return None
 
     # CATEGORY 8: Mixed Complex
 
-    def msg_existential_implication(self) -> str:
+    def msg_existential_implication(self) -> str | None:
         #exists x.mine(x,c1) -> exists x.mine(x,c2) - if col1 has mine, col2 has mine.
         cols_with_mines = [c for c in range(1, self.n+1)
                           if any((r, c) in self.mines for r in range(1, self.n+1))]
@@ -257,21 +257,19 @@ class MessageGenerator:
             c1, c2 = random.sample(cols_with_mines, 2)
             return f"((exists x mine(x,{c1})) -> (exists x mine(x,{c2})))"
         else:
-            return self.msg_direct_mine()
+            return None
 
-    def msg_universal_all_or_none(self) -> str:
+    def msg_universal_all_or_none(self) -> str | None:
         #(all x.mine(r,x)) | (all x.-mine(r,x)) - row is all mines or all safe.
-        r = random.randint(1, self.n)
+        rows = [r for r in range(1, self.n+1)
+                if all((r, c) in self.mines for c in range(1, self.n+1))
+                or all((r, c) in self.safe for c in range(1, self.n+1))]
 
-        # Check if row is all mines or all safe
-        row_cells = [(r, c) for c in range(1, self.n+1)]
-        all_mines = all(cell in self.mines for cell in row_cells)
-        all_safe = all(cell in self.safe for cell in row_cells)
-
-        if all_mines or all_safe:
+        if rows:
+            r = random.choice(rows)
             return f"((all x mine({r},x)) | (all x (-mine({r},x))))"
         else:
-            return self.msg_direct_safe()
+            return None
 
     # Message Selection
 
@@ -283,11 +281,14 @@ class MessageGenerator:
         """
         if difficulty == "Easy":
             options = [
-                (self.msg_direct_safe, 40),
-                (self.msg_direct_mine, 20),
-                (self.msg_conjunction_safe, 20),
+                (self.msg_direct_safe, 30),
+                (self.msg_direct_mine, 15),
+                (self.msg_conjunction_safe, 15),
                 (self.msg_implication_safe_to_safe, 10),
                 (self.msg_disjunction_safe, 10),
+                (self.msg_universal_row_all_safe, 8),
+                (self.msg_no_mines_in_col, 7),
+                (self.msg_existential_mine_in_row, 5),
             ]
 
         elif difficulty == "Medium":
@@ -303,6 +304,11 @@ class MessageGenerator:
                 (self.msg_existential_mine_in_col, 10),
                 (self.msg_no_mines_in_row, 10),
                 (self.msg_universal_row_all_safe, 10),
+                (self.msg_universal_no_mines_on_diagonal, 5),
+                (self.msg_no_mines_in_col, 5),
+                (self.msg_biconditional_symmetric, 5),
+                (self.msg_universal_col_implies, 5),
+                (self.msg_biconditional_row_col, 5),
             ]
 
         else:  # Hard
@@ -320,16 +326,22 @@ class MessageGenerator:
                 (self.msg_no_mines_in_row, 10),
                 (self.msg_no_mines_in_col, 8),
                 (self.msg_existential_implication, 12),
+                (self.msg_biconditional_row_col, 8),
+                (self.msg_universal_all_or_none, 8),
             ]
 
-        functions, weights = zip(*options)
-        chosen_func = random.choices(functions, weights=weights)[0]
-
-        try:
-            message = chosen_func()
-            return message
-        except (IndexError, ValueError):
-            return self.msg_direct_safe()
+        # A type that doesn't fit this board returns None; then pick among the others
+        while options:
+            functions, weights = zip(*options)
+            chosen_func = random.choices(functions, weights=weights)[0]
+            try:
+                message = chosen_func()
+            except (IndexError, ValueError):
+                message = None
+            if message is not None:
+                return message
+            options = [option for option in options if option[0] != chosen_func]
+        return self.msg_direct_safe()
 
     def generate_helpful_start_message(self) -> str:
         #Generate a message for the start cell that helps the player progress.
