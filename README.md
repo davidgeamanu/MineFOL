@@ -131,7 +131,7 @@
 ### Backend
 - **Python 3.x** - Core programming language
 - **Flask** - Web application framework
-- **gunicorn** + **Docker** - Server setup for deployment
+- **gunicorn** + **Docker** - Run the app in a container
 - **Prover9** - First-order logic theorem prover
 - **Mace4** - Finite model finder
 - **JSON** - Game state serialization
@@ -236,7 +236,7 @@ Each puzzle picks its mine count and number of clue cells at random within its d
 
 #### 7. Alternative: Docker
 
-The same setup the server uses: gunicorn in a container, no venv needed.
+Runs the app with gunicorn in a container. You only need Docker; no Python or venv on your machine.
 
 ```bash
 docker compose up -d --build   # build and start in the background
@@ -244,7 +244,7 @@ docker compose logs -f         # follow the logs (Ctrl+C stops following, not th
 docker compose down            # stop
 ```
 
-The app is then on **`http://localhost:8000`**. After changing code or puzzles, run the first command again.
+The app is then on **`http://localhost`** (port 80; change the left number under `ports:` in `docker-compose.yml` to use another one). After changing code or puzzles, run the first command again.
 
 ---
 
@@ -501,7 +501,7 @@ MineFOL/
 │   (python save_game.py hard 3 appends 3 new numbered Hard puzzles)
 │
 ├── screenshots/                  # UI screenshots
-├── Dockerfile                    # Image for the server (gunicorn)
+├── Dockerfile                    # Container image (gunicorn)
 ├── docker-compose.yml            # Runs the container, restarts it after reboots
 ├── requirements.txt              # Python dependencies (Flask, gunicorn)
 └── README.md
