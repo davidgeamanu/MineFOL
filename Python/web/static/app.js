@@ -330,7 +330,7 @@ function renderPicker(){
 function showPuzzle(res){
   current = { category: res.category, number: res.number };
   rememberNumber(current.category, current.number);
-  history.replaceState(null, "", `?d=${current.category}&n=${current.number}`);
+  history.replaceState(null, "", `/${current.category}/${current.number}`);
   renderPicker();
   clearHint();
   kbOrder = [];   // a new or restarted puzzle starts with clues in the order found
@@ -561,10 +561,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   const session = await api("/api/state");
   updateModeButtons();
 
-  // A link like ?d=hard&n=2 opens that puzzle; otherwise continue the current game
+  // A link like /hard/2 (or the older ?d=hard&n=2) opens that puzzle; otherwise continue the current game
   const params = new URLSearchParams(location.search);
-  const cat = categoryInfo(params.get("d"));
-  const n = parseInt(params.get("n"), 10);
+  const [, pathCategory, pathNumber] = location.pathname.split("/");
+  const cat = categoryInfo(pathCategory || params.get("d"));
+  const n = parseInt(pathNumber || params.get("n"), 10);
   if (cat && cat.numbers.includes(n) && (cat.name !== session.category || n !== session.number)) {
     loadPuzzle(cat.name, n);
   } else {

@@ -9,7 +9,7 @@ import secrets
 from pathlib import Path
 from typing import Any, Dict, Tuple, List
 
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, abort, jsonify, render_template, request, session
 
 THIS_FILE = Path(__file__).resolve()
 PROJECT_ROOT = THIS_FILE.parents[2]
@@ -176,6 +176,15 @@ def _drop_idle_sessions() -> None:
 
 @app.get("/")
 def index():
+    return render_template("index.html")
+
+
+@app.get("/<category>/<int:number>")
+def puzzle_page(category: str, number: int):
+    #A puzzle's own address, e.g. /hard/2; the page then opens that puzzle
+    listed = {cat["name"]: cat["numbers"] for cat in _list_puzzles()}
+    if number not in listed.get(category, []):
+        abort(404)
     return render_template("index.html")
 
 
