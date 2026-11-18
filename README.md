@@ -42,11 +42,11 @@
 <td width="50%">
 
 ### FOL Clue System
-- **8 logical formula types** as clues
-- Direct facts: `mine(r,c)` or `-mine(r,c)`
-- Conjunctions, disjunctions, implications
-- Biconditionals and quantified statements
-- Complex nested formulas
+- Clues about single cells, rows, columns and the diagonal
+- Conjunctions, disjunctions, implications, biconditionals
+- Quantified statements (`all x`, `exists x`)
+- Links between cells or columns (e.g. "columns 2 and 4 have the same mines")
+- No repeats: a clue that earlier clues already imply is redrawn
 
 </td>
 <td width="50%">
@@ -63,10 +63,10 @@
 <td width="50%">
 
 ### Difficulty Levels
-- **Easy** - 4×4 grid with 3 mines
-- **Medium** - 5×5 grid with 4 mines
-- **Hard** - 6×6 grid with 5 mines
-- Procedurally generated, numbered puzzles (Hard #1, #2, ...)
+- **Easy** - 4×4 grid, 2–4 mines
+- **Medium** - 5×5 grid, 3–5 mines
+- **Hard** - 6×6 grid, 4–5 mines
+- Procedurally generated, numbered puzzles (Hard #1, #2, ...); mine and clue counts vary per puzzle
 - Every puzzle is checked to be solvable without guessing
 
 </td>
@@ -131,6 +131,7 @@
 ### Backend
 - **Python 3.x** - Core programming language
 - **Flask** - Web application framework
+- **gunicorn** + **Docker** - Server setup for deployment
 - **Prover9** - First-order logic theorem prover
 - **Mace4** - Finite model finder
 - **JSON** - Game state serialization
@@ -226,9 +227,24 @@ Commands: `w`/`a`/`s`/`d` to move, `h` for safe moves, `m` for forced mines, `f 
 cd Python/src
 python save_game.py hard 3    # adds 3 new Hard puzzles under the next free numbers
 python save_game.py           # one new puzzle per difficulty
+python save_game.py medium 2 --mines 5 --clues 13   # fixed counts instead of random ones
 ```
 
-New puzzles are validated (solvable without guessing), never overwrite existing ones, and appear in the web app after a page refresh. Hard puzzles can take several minutes each. It's safe to generate while the web app is being played: every prover call uses its own temporary folder.
+Each puzzle picks its mine count and number of clue cells at random within its difficulty's range (Easy 2–4 mines / 7–9 clue cells, Medium 3–5 / 12–15, Hard 4–5 / 16–18); `--mines` and `--clues` fix them. New puzzles are validated (solvable without guessing), never overwrite existing ones, and appear in the web app after a page refresh. Easy and Medium take seconds, Hard usually a few minutes. It's safe to generate while the web app is being played: every prover call uses its own temporary folder.
+
+---
+
+#### 7. Alternative: Docker
+
+The same setup the server uses: gunicorn in a container, no venv needed.
+
+```bash
+docker compose up -d --build   # build and start in the background
+docker compose logs -f         # follow the logs (Ctrl+C stops following, not the app)
+docker compose down            # stop
+```
+
+The app is then on **`http://localhost:8000`**. After changing code or puzzles, run the first command again.
 
 ---
 
@@ -254,6 +270,12 @@ New puzzles are validated (solvable without guessing), never overwrite existing 
 | Biconditional | `(mine(1,2) <-> mine(2,1))` | Both are mines or both are safe |
 | Universal | `(all x -mine(5,x))` | Row 5 has no mines |
 | Existential | `(exists x mine(3,x))` | Row 3 has at least one mine |
+| Diagonal | `(all x -mine(x,x))` | No mines on the diagonal |
+| Same columns | `(all x (mine(x,2) <-> mine(x,4)))` | Columns 2 and 4 have the same mines |
+| Column link | `((exists x mine(x,2)) -> (exists x mine(x,6)))` | If column 2 has a mine, so does column 6 |
+| All or none | `((all x mine(1,x)) \| (all x -mine(1,x)))` | Row 1 is all mines or all safe |
+
+Many clues also carry a hint that leads you on, such as `(-mine(2,3) -> -mine(2,4))`: once you stand on (2,3), (2,4) is safe too.
 
 ### Theorem Prover Integration
 
@@ -446,7 +468,7 @@ MineFOL/
 │   ├── src/                      # Core game logic
 │   │   ├── game_state.py         # Game state dataclass
 │   │   ├── generator.py          # Procedural game generation + solvability check
-│   │   ├── message_generator.py  # FOL clue generation (8 types)
+│   │   ├── message_generator.py  # FOL clue generation
 │   │   ├── message_translate.py  # Formulas -> display text (¬, ∧, ∀, ...)
 │   │   ├── logic_engine.py       # Prover9/Mace4 interface
 │   │   ├── minefol_writer.py     # Writes Prover9/Mace4 input files
@@ -471,15 +493,17 @@ MineFOL/
 │   (prover input/output files go to a temporary folder per call, deleted afterwards)
 │
 ├── build/games/                  # Puzzle library, one folder per category
-│   ├── easy/001.json, 002.json   # 4×4, 3 mines
-│   ├── medium/001.json, ...      # 5×5, 4 mines
-│   ├── hard/001.json, ...        # 6×6, 5 mines
+│   ├── easy/001.json, 002.json   # 4×4, 2–4 mines
+│   ├── medium/001.json, ...      # 5×5, 3–5 mines
+│   ├── hard/001.json, ...        # 6×6, 4–5 mines
 │   ├── custom/001.json           # Hand-made puzzles
 │   └── mace_prover_input_files/  # Example Prover9/Mace4 input files
 │   (python save_game.py hard 3 appends 3 new numbered Hard puzzles)
 │
 ├── screenshots/                  # UI screenshots
-├── requirements.txt              # Python dependencies (Flask)
+├── Dockerfile                    # Image for the server (gunicorn)
+├── docker-compose.yml            # Runs the container, restarts it after reboots
+├── requirements.txt              # Python dependencies (Flask, gunicorn)
 └── README.md
 ```
 
