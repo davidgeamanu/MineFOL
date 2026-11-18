@@ -26,12 +26,14 @@ Coord = Tuple[int, int]
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = os.environ.get("MINEFOL_SECRET_KEY") or secrets.token_hex(32)
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 ENGINE = LogicEngine()
 
 # In-memory sessions, one game per browser
 SESSIONS: Dict[str, Dict[str, Any]] = {}
 LAST_SEEN: Dict[str, float] = {}
 SESSION_IDLE_HOURS = 12
+MAX_SESSIONS = 10_000
 NO_GAME = "Your game has expired. Reload the page to start again."
 
 
@@ -163,6 +165,11 @@ def _drop_idle_sessions() -> None:
     cutoff = time.time() - SESSION_IDLE_HOURS * 3600
     for sid, seen in list(LAST_SEEN.items()):
         if seen < cutoff:
+            LAST_SEEN.pop(sid, None)
+            SESSIONS.pop(sid, None)
+    if len(LAST_SEEN) > MAX_SESSIONS:
+        oldest = sorted(list(LAST_SEEN.items()), key=lambda item: item[1])[:MAX_SESSIONS // 10]
+        for sid, _ in oldest:
             LAST_SEEN.pop(sid, None)
             SESSIONS.pop(sid, None)
 
